@@ -1,0 +1,138 @@
+{
+    "alibaba": [
+        {"name": "homepage", "url": "https://www.alibabacloud.com/en/product/machine-learning/pricing?_p_lc=1"},
+        {"name": "blog", "url": "https://www.alibabacloud.com/en/news/product?_p_lc=1&spm=a3c0i.7911826.9556232360.54.6a323870ktKQyW"}
+    ],
+    "anyscale": [
+        {"name": "homepage", "url": "https://www.anyscale.com/"},
+        {"name": "blog", "url": "https://www.anyscale.com/blog"}
+    ],
+    "civo": [
+        {"name": "homepage", "url": "https://www.civo.com/"},
+        {"name": "blog", "url": "https://www.civo.com/blog"}
+    ],
+    "cudo": [
+        {"name": "homepage", "url": "https://www.cudocompute.com/"},
+        {"name": "blog", "url": "https://www.cudocompute.com/blog"}
+    ],
+    "coreweave": [
+        {"name": "homepage", "url": "https://www.coreweave.com/"},
+        {"name": "blog", "url": "https://www.coreweave.com/newsroom"}
+    ],
+    "fluidstack": [
+        {"name": "homepage", "url": "https://www.fluidstack.io/"},
+        {"name": "blog", "url": "https://www.fluidstack.io/resources/blog"}
+    ],
+    "genesiscloud": [
+        {"name": "homepage", "url": "https://www.genesiscloud.com/"},
+        {"name": "blog", "url": "https://www.genesiscloud.com/blog"}
+    ],
+    "koyeb": [
+        {"name": "homepage", "url": "https://www.koyeb.com/"},
+        {"name": "blog", "url": "https://www.koyeb.com/blog"}
+    ],
+    "lambda": [
+        {"name": "homepage", "url": "https://lambda.ai/"},
+        {"name": "blog", "url": "https://lambda.ai/blog"}
+    ],
+    "hyperstack": [
+        {"name": "homepage", "url": "https://www.hyperstack.cloud/"},
+        {"name": "blog", "url": "https://www.hyperstack.cloud/blog"}
+    ],
+    "liquidweb": [
+        {"name": "homepage", "url": "https://www.liquidweb.com/"},
+        {"name": "blog", "url": "https://www.liquidweb.com/blog/"}
+    ],
+    "modal": [
+        {"name": "homepage", "url": "https://modal.com/"},
+        {"name": "blog", "url": "https://modal.com/blog"}
+    ],
+    "neevcloud": [
+        {"name": "homepage", "url": "https://www.neevcloud.com/"},
+        {"name": "blog", "url": "https://blog.neevcloud.com/"}
+    ],
+    "oblivus": [
+        {"name": "homepage", "url": "https://oblivus.com/"},
+        {"name": "blog", "url": "https://oblivus.com/blog/"}
+    ],
+    "vast": [
+        {"name": "homepage", "url": "https://vast.ai/"},
+        {"name": "blog", "url": "https://vast.ai/blog"}
+    ],
+    "datacrunch": [
+        {"name": "homepage", "url": "https://datacrunch.io/"},
+        {"name": "blog", "url": "https://datacrunch.io/blog"}
+    ],
+    "sakura": [
+        {"name": "homepage", "url": "https://cloud.sakura.ad.jp/"},
+        {"name": "blog", "url": "https://www.sakura.ad.jp/corporate/information/"}
+    ],
+    "scaleway": [
+        {"name": "homepage", "url": "https://www.scaleway.com/en/"},
+        {"name": "blog", "url": "https://www.scaleway.com/en/blog/"}
+    ],
+    "seeweb": [
+        {"name": "homepage", "url": "https://www.seeweb.it/en"},
+        {"name": "blog", "url": "https://blog.seeweb.it/"}
+    ],
+    "sesterce": [
+        {"name": "homepage", "url": "https://www.sesterce.com/"},
+        {"name": "blog", "url": "https://www.sesterce.com/blog"}
+    ],
+    "soroban": [
+        {"name": "homepage", "url": "https://soroban.highreso.jp/"},
+        {"name": "blog", "url": "https://soroban.highreso.jp/news"}
+    ],
+    "anthropic": [
+        {"name": "homepage", "url": "https://www.anthropic.com/"},
+        {"name": "blog", "url": "https://www.anthropic.com/news"}
+    ],
+    "aws": [
+        {"name": "ec2_homepage", "url": "https://aws.amazon.com/jp/ec2/capacityblocks/"},
+        {"name": "sagemaker_homepage", "url": "https://aws.amazon.com/jp/sagemaker/?nc=sn&loc=1"}
+    ],
+    "azure": [
+        {"name": "homepage", "url": "https://azure.microsoft.com/ja-jp/products/ai-services/openai-service/"}
+    ],
+    "baseten": [
+        {"name": "homepage", "url": "https://www.baseten.co/"},
+        {"name": "blog", "url": "https://www.baseten.co/blog/"}
+    ],
+    "fireworks": [
+        {"name": "homepage", "url": "https://fireworks.ai/"},
+        {"name": "blog", "url": "https://fireworks.ai/blog"}
+    ],
+    "google": [
+        {"name": "vertex_homepage", "url": "https://cloud.google.com/vertex-ai?hl=en"},
+        {"name": "note", "url": "https://cloud.google.com/vertex-ai/docs/release-notes"},
+        {"name": "gpu_homepage", "url": "https://cloud.google.com/gpu?hl=en#pricing"}
+    ],
+    "groq": [
+        {"name": "homepage", "url": "https://groq.com/"},
+        {"name": "blog", "url": "https://groq.com/blog"}
+    ],
+    "openai": [
+        {"name": "homepage", "url": "https://openai.com/ja-JP/"},
+        {"name": "blog", "url": "https://openai.com/ja-JP/news/"}
+    ],
+    "oracle": [
+        {"name": "homepage", "url": "https://www.oracle.com/cloud/"},
+        {"name": "blog", "url": "https://blogs.oracle.com/cloud-infrastructure/"}
+    ],
+    "sambanova": [
+        {"name": "homepage", "url": "https://cloud.sambanova.ai/dashboard"},
+        {"name": "blog", "url": "https://docs.sambanova.ai/cloud/release-notes/overview"}
+    ],
+    "tencent": [
+        {"name": "overview", "url": "https://www.tencentcloud.com/jp/document/product/1111/42981"},
+        {"name": "releasenote", "url": "https://www.tencentcloud.com/jp/document/product/1111/42979"}
+    ],
+    "together": [
+        {"name": "homepage", "url": "https://www.together.ai/"},
+        {"name": "blog", "url": "https://www.together.ai/blog"}
+    ],
+    "runpod": [
+        {"name": "homepage", "url": "https://www.runpod.io/"},
+        {"name": "blog", "url": "https://www.runpod.io/blog"}
+    ]
+}

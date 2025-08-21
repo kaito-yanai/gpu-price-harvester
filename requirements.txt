@@ -1,0 +1,31 @@
+# functions-framework
+# requests
+# beautifulsoup4
+# gspread
+# google-auth
+# google-auth-oauthlib
+# google-auth-httplib2
+# SQLAlchemy
+# PyMySQL
+# cloud-sql-python-connector[PyMySQL]
+# google-cloud-billing
+# google-cloud-secret-manager
+# boto3
+# python-dotenv
+
+beautifulsoup4
+boto3
+functions-framework
+google-auth
+google-auth-httplib2
+google-auth-oauthlib
+google-cloud-billing
+google-cloud-secret-manager
+gspread
+requests
+selenium
+selenium-stealth
+oauth2client
+google-api-python-client
+CurrencyConverter
+google-cloud-storage
