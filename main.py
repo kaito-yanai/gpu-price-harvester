@@ -179,101 +179,110 @@ def _clean_html_for_comparison(html_content: str) -> str:
         print(f"  -> Error during HTML cleaning: {e}")
         return html_content
 
-# def check_website_changes(driver, drive_service, targets):
-#     print("\n--- Starting Website Change Detection ---")
-#     storage_client = storage.Client()
-#     bucket_name = "gcs-bucket-for-html"
-#     bucket = storage_client.bucket(bucket_name)
+def check_website_changes(driver, drive_service, targets):
+    print("\n--- Starting Website Change Detection ---")
+    storage_client = storage.Client()
+    bucket_name = "gcs-bucket-for-html"
+    bucket = storage_client.bucket(bucket_name)
     
-#     output_dir = "/tmp"
-#     new_screenshots = []
-#     notifications = []
+    output_dir = "/tmp"
+    new_screenshots = []
+    notifications = []
 
-#     for platform, pages in targets.items():
-#         for page in pages:
-#             url, name = page['url'], page['name']
-#             print(f"Checking {platform} - {name} ({url})...")
+    for platform, pages in targets.items():
+        for page in pages:
+            url, name = page['url'], page['name']
+            print(f"Checking {platform} - {name} ({url})...")
             
-#             try:
-#                 # 1. 今日のHTMLを取得
-#                 driver.get(url)
-#                 time.sleep(5)
-#                 html_today_raw = driver.page_source
+            try:
+                # 1. 今日のHTMLを取得
+                driver.get(url)
+                time.sleep(5)
+                html_today_raw = driver.page_source
 
-#                 # 2. GCSから昨日のHTMLを取得
-#                 blob_path = f"{platform}/{name}.html"
-#                 blob = bucket.blob(blob_path)
-#                 html_yesterday_raw = ""
-#                 if blob.exists():
-#                     html_yesterday_raw = blob.download_as_text()
+                # 2. GCSから昨日のHTMLを取得
+                blob_path = f"{platform}/{name}.html"
+                blob = bucket.blob(blob_path)
+                html_yesterday_raw = ""
+                if blob.exists():
+                    html_yesterday_raw = blob.download_as_text()
 
-#                 # 3. 両方のHTMLをクリーニングし、ハッシュ値を計算して比較
-#                 content_today = _clean_html_for_comparison(html_today_raw)
-#                 content_yesterday = _clean_html_for_comparison(html_yesterday_raw)
+                # 3. 両方のHTMLをクリーニングし、ハッシュ値を計算して比較
+                content_today = _clean_html_for_comparison(html_today_raw)
+                content_yesterday = _clean_html_for_comparison(html_yesterday_raw)
 
-#                 hash_today = hashlib.sha256(content_today.encode('utf-8')).hexdigest()
-#                 hash_yesterday = hashlib.sha256(content_yesterday.encode('utf-8')).hexdigest()
+                hash_today = hashlib.sha256(content_today.encode('utf-8')).hexdigest()
+                hash_yesterday = hashlib.sha256(content_yesterday.encode('utf-8')).hexdigest()
 
-                # if hash_yesterday != hash_today:
-                #     is_changed = True
-                #     is_first_run = not html_yesterday_raw
-                # else:
-                #     is_changed = False
-                #     is_first_run = False
-                # total_height = driver.execute_script("return document.body.parentNode.scrollHeight")
-                # driver.set_window_size(1920, total_height)
-                # time.sleep(2)
-                # # 4. 変更検知 or 初回実行時の処理
-                # if is_first_run:
-                #     print(f"  -> First run for {platform} - {name}. Saving baseline.")
-                #     notifications.append(f"Baseline for {platform} {name} has been saved.")
-                #     # ベースラインのスクリーンショットを撮影
-                #     filename = f"{platform}_{name}_base.png"
-                #     filepath = os.path.join(output_dir, filename)
-#                     driver.save_screenshot(filepath)
-#                     new_screenshots.append(filepath)
+                if hash_yesterday != hash_today:
+                    is_changed = True
+                    is_first_run = not html_yesterday_raw
+                else:
+                    is_changed = False
+                    is_first_run = False
+                total_height = driver.execute_script("return document.body.parentNode.scrollHeight")
+                driver.set_window_size(1920, total_height)
+                time.sleep(2)
+                # 4. 変更検知 or 初回実行時の処理
+                if is_first_run or is_changed:
+                    # 1. 毎回ウィンドウサイズを標準にリセットする
+                    print("  -> Resizing window to standard size before measurement...")
+                    driver.set_window_size(1920, 1080)
+                    time.sleep(2)
 
-#                 elif is_changed:
-#                     print(f"  -> CHANGE DETECTED for {platform} - {name}!")
-#                     notifications.append(f"Change detected on {platform} {name}: {url}")
+                    # 2. より堅牢な方法でページのフルハイトを取得
+                    total_height = driver.execute_script(
+                        "return Math.max( document.body.scrollHeight, document.body.offsetHeight, document.documentElement.clientHeight, document.documentElement.scrollHeight, document.documentElement.offsetHeight );"
+                    )
                     
-#                     # 差分スクリーンショットを撮影
-#                     # Google Drive上の既存の差分ファイル数を数えて連番を決定
-#                     timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
-#                     filename = f"{platform}_{name}_diff_{timestamp}.png"
-#                     filepath = os.path.join(output_dir, filename)
-#                     driver.save_screenshot(filepath)
-#                     new_screenshots.append(filepath)
+                    # 3. 取得した高さにウィンドウサイズをセット
+                    print(f"  -> Setting window height to {total_height}px for full screenshot.")
+                    driver.set_window_size(1920, total_height)
+                    time.sleep(2)
 
-#                 else:
-#                     print(f"  -> No change detected.")
+                    if is_first_run:
+                        print(f"  -> First run for {platform} - {name}. Saving baseline.")
+                        notifications.append(f"Baseline for {platform} {name} has been saved.")
+                        filename = f"{platform}_{name}_base.png"
+                    else: # is_changed == True
+                        print(f"  -> CHANGE DETECTED for {platform} - {name}!")
+                        notifications.append(f"Change detected on {platform} {name}: {url}")
+                        timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
+                        filename = f"{platform}_{name}_diff_{timestamp}.png"
+                    
+                    filepath = os.path.join(output_dir, filename)
+                    driver.save_screenshot(filepath)
+                    new_screenshots.append(filepath)
 
-#                 # 5. 変更があった場合、または初回実行時は今日のHTMLをGCSに保存
-#                 if is_changed or is_first_run:
-#                     blob.upload_from_string(html_today_raw, content_type='text/html')
+                else:
+                    print(f"  -> No change detected.")
 
-#             except Exception as e:
-#                 print(f"  -> Error checking {platform} - {name}: {e}")
+                # 変更があった場合、または初回実行時は今日のHTMLをGCSに保存
+                if is_first_run or is_changed:
+                    blob.upload_from_string(html_today_raw, content_type='text/html')
+
+            except Exception as e:
+                print(f"  -> Error checking {platform} - {name}: {e}")
     
-#     # 6. 新しく撮影したスクリーンショットをアップロード
-#     if new_screenshots:
-#         PARENT_DRIVE_FOLDER_ID = "1mA4YZ00FXIZ5aMeq15vagz1jtQbCDT1R" # 監視フォルダの親フォルダID
-#         upload_monitoring_screenshots(drive_service, new_screenshots, PARENT_DRIVE_FOLDER_ID)
+    # 6. 新しく撮影したスクリーンショットをアップロード
+    if new_screenshots:
+        PARENT_DRIVE_FOLDER_ID = "1mA4YZ00FXIZ5aMeq15vagz1jtQbCDT1R" # 監視フォルダの親フォルダID
+        upload_monitoring_screenshots(drive_service, new_screenshots, PARENT_DRIVE_FOLDER_ID)
 
-#     # 7. 通知処理（実装は別途）
-#     if notifications:
-#         print("\n--- Sending Change Notifications to Slack ---")
+    # 7. 通知処理（実装は別途）
+    if notifications:
+        print("\n--- Sending Change Notifications to Slack ---")
 
-#         # 通知メッセージを1つにまとめる
-#         full_message = "以下のWebサイトで変更を検知しました。\n" + "\n".join(notifications)
+        # 通知メッセージを1つにまとめる
+        full_message = "以下のWebサイトで変更を検知しました。\n" + "\n".join(notifications)
 
-#         # Slackに通知
-#         send_slack_notification(full_message)
+        # Slackに通知
+        send_slack_notification(full_message)
 
-#     else:
-#         print("\nNo website changes to notify.")
+    else:
+        print("\nNo website changes to notify.")
 
-def check_website_changes(driver, targets):
+def check_website_changes_local(driver, targets):
     """
     【ローカル検証用】GCSの代わりにローカルフォルダを使って変更検知を行う
     """
@@ -316,22 +325,31 @@ def check_website_changes(driver, targets):
                 driver.set_window_size(1920, total_height)
                 time.sleep(2)
 
-                if is_first_run:
-                    print(f"  -> First run for {platform} - {name}. Saving baseline.")
-                    filename = f"{platform}_{name}_base.png"
-                    driver.save_screenshot(os.path.join(platform_path, filename))
-                    print(f"  -> Screenshot saved to: {os.path.join(platform_path, filename)}")
+                if is_first_run or is_changed:
+                    # 1. ウィンドウサイズをリセット
+                    driver.set_window_size(1920, 1080)
+                    time.sleep(2)
+                    # 2. ページのフルハイトを堅牢な方法で取得
+                    total_height = driver.execute_script("return document.body.parentNode.scrollHeight")
+                    # 3. 取得した高さにウィンドウサイズをセット
+                    driver.set_window_size(1920, total_height)
+                    time.sleep(2)
 
-                elif is_changed:
-                    print(f"  -> CHANGE DETECTED for {platform} - {name}!")
-                    timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
-                    filename = f"{platform}_{name}_diff_{timestamp}.png"
-                    driver.save_screenshot(os.path.join(platform_path, filename))
-                    print(f"  -> Screenshot saved to: {os.path.join(platform_path, filename)}")
+                    if is_first_run:
+                        print(f"  -> First run for {platform} - {name}. Saving baseline.")
+                        filename = f"{platform}_{name}_base.png"
+                    else: # is_changed == True
+                        print(f"  -> CHANGE DETECTED for {platform} - {name}!")
+                        timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
+                        filename = f"{platform}_{name}_diff_{timestamp}.png"
+
+                    filepath = os.path.join(platform_path, filename)
+                    driver.save_screenshot(filepath)
+                    print(f"  -> Screenshot saved to: {filepath}")
+
                 else:
                     print(f"  -> No change detected.")
                 
-                # 変更があった場合、または初回実行時は今日のHTMLをローカルに保存
                 if is_changed or is_first_run:
                     with open(html_file_path, 'w', encoding='utf-8') as f:
                         f.write(html_today_raw)
@@ -514,42 +532,42 @@ def screenshot_entry_point(request):
 
     # 2. 各ハンドラを呼び出し、ブラウザの操作権を渡す
     print("--- Processing ---")
-    # for handler in all_handlers:
-    #     handler_name = handler.__name__.split('.')[-1]
-    #     print(f"--- Processing {handler_name} ---")
+    for handler in all_handlers:
+        handler_name = handler.__name__.split('.')[-1]
+        print(f"--- Processing {handler_name} ---")
         
-    #     try:
-    #         screenshot_paths, scraped_data = handler.process_data_and_screenshot(driver, output_dir)
+        try:
+            screenshot_paths, scraped_data = handler.process_data_and_screenshot(driver, output_dir)
 
-    #         if screenshot_paths:
-    #             saved_files.extend(screenshot_paths)
-    #             print(f"  -> Got {len(screenshot_paths)} screenshot(s) from {handler_name}.")
+            if screenshot_paths:
+                saved_files.extend(screenshot_paths)
+                print(f"  -> Got {len(screenshot_paths)} screenshot(s) from {handler_name}.")
             
-    #         if scraped_data:
-    #             all_scraped_data.extend(scraped_data)
-    #             print(f"  -> Got {len(scraped_data)} data rows from {handler_name}.")
+            if scraped_data:
+                all_scraped_data.extend(scraped_data)
+                print(f"  -> Got {len(scraped_data)} data rows from {handler_name}.")
 
-    #     except Exception as e:
-    #         # ハンドラ実行中に予期せぬエラーが起きた場合
-    #         print(f"!!! An unexpected error occurred in {handler_name}: {e}. Skipping.")
+        except Exception as e:
+            # ハンドラ実行中に予期せぬエラーが起きた場合
+            print(f"!!! An unexpected error occurred in {handler_name}: {e}. Skipping.")
 
     # Google Drive/GCSへの接続情報を再利用するために先に定義
-    # try:
-    #     creds, project = google_auth_default(scopes=[
-    #         'https://www.googleapis.com/auth/spreadsheets',
-    #         'https://www.googleapis.com/auth/drive',
-    #         'https://www.googleapis.com/auth/devstorage.read_write' # GCSのスコープを追加
-    #     ])
-    #     drive_service = build('drive', 'v3', credentials=creds)
-    # except Exception as e:
-    #     print(f"Failed to authenticate with Google services: {e}")
-    #     driver.quit()
-    #     return "Authentication failed.", 500
+    try:
+        creds, project = google_auth_default(scopes=[
+            'https://www.googleapis.com/auth/spreadsheets',
+            'https://www.googleapis.com/auth/drive',
+            'https://www.googleapis.com/auth/devstorage.read_write' # GCSのスコープを追加
+        ])
+        drive_service = build('drive', 'v3', credentials=creds)
+    except Exception as e:
+        print(f"Failed to authenticate with Google services: {e}")
+        driver.quit()
+        return "Authentication failed.", 500
 
     # === Webサイト変更監視処理 ===
     if MONITORING_TARGETS:
         # check_website_changes(driver, drive_service, MONITORING_TARGETS)
-        check_website_changes(driver, MONITORING_TARGETS)
+        check_website_changes_local(driver, MONITORING_TARGETS)
 
     # 3. ブラウザを閉じる
     driver.quit()
