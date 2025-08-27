@@ -1,138 +1,364 @@
 {
     "alibaba": [
         {"name": "homepage", "url": "https://www.alibabacloud.com/en/product/machine-learning/pricing?_p_lc=1"},
-        {"name": "blog", "url": "https://www.alibabacloud.com/en/news/product?_p_lc=1&spm=a3c0i.7911826.9556232360.54.6a323870ktKQyW"}
+        {
+            "name": "blog",
+            "url": "https://www.alibabacloud.com/en/news/product?_p_lc=1&spm=a3c0i.7911826.9556232360.54.6a323870ktKQyW",
+            "check_type": "latest_title",
+            "selectors": {
+                "title": ".article-left-box span.Item__content-head-title",
+                "description": ".article-left-box div.Item__content-desc"
+            }
+        }
     ],
     "anyscale": [
         {"name": "homepage", "url": "https://www.anyscale.com/"},
-        {"name": "blog", "url": "https://www.anyscale.com/blog"}
+        {
+            "name": "blog",
+            "url": "https://www.anyscale.com/blog",
+            "check_type": "latest_title",
+            "selectors": {
+                "title": "div.sm\\:grid > a:first-child h2"
+            }
+        }
     ],
     "civo": [
         {"name": "homepage", "url": "https://www.civo.com/"},
-        {"name": "blog", "url": "https://www.civo.com/blog"}
+        {
+            "name": "blog",
+            "url": "https://www.civo.com/blog",
+            "check_type": "latest_title",
+            "selectors": {
+                "title": ".media-card-body h4",
+                "description": ".media-card-body p"
+            }
+        }
     ],
     "cudo": [
-        {"name": "homepage", "url": "https://www.cudocompute.com/"},
-        {"name": "blog", "url": "https://www.cudocompute.com/blog"}
+        {"name": "homepage", "url": "https://www.cudocompute.com/", "pre_action": "click_cudo_cookie_decline"},
+        {
+            "name": "blog",
+            "url": "https://www.cudocompute.com/blog",
+            "check_type": "latest_title",
+            "pre_action": "click_cudo_cookie_decline",
+            "selectors": {
+                "title": "ul a:first-child h2",
+                "description": "ul a:first-child div.space-y-2 p"
+            }
+        }
     ],
     "coreweave": [
         {"name": "homepage", "url": "https://www.coreweave.com/"},
-        {"name": "blog", "url": "https://www.coreweave.com/newsroom"}
+        {
+            "name": "blog",
+            "url": "https://www.coreweave.com/newsroom",
+            "check_type": "latest_title",
+            "selectors": {
+                "title": "#resource-app .featured__card h2",
+                "description": "#resource-app .featured__card div[class^=\"paragraph-\"]"
+            }
+        }
     ],
     "fluidstack": [
         {"name": "homepage", "url": "https://www.fluidstack.io/"},
-        {"name": "blog", "url": "https://www.fluidstack.io/resources/blog"}
+        {
+            "name": "blog",
+            "url": "https://www.fluidstack.io/resources/blog",
+            "check_type": "latest_title",
+            "selectors": {
+                "title": "h4.framer-text"
+            }
+        }
     ],
     "genesiscloud": [
         {"name": "homepage", "url": "https://www.genesiscloud.com/"},
-        {"name": "blog", "url": "https://www.genesiscloud.com/blog"}
+        {
+            "name": "blog",
+            "url": "https://www.genesiscloud.com/blog",
+            "check_type": "latest_title",
+            "selectors": {
+                "title": "a.blog-one-item-cms-wrapper div.blog-heading-three"
+            }
+        }
     ],
     "koyeb": [
         {"name": "homepage", "url": "https://www.koyeb.com/"},
-        {"name": "blog", "url": "https://www.koyeb.com/blog"}
+        {
+            "name": "blog",
+            "url": "https://www.koyeb.com/blog",
+            "check_type": "latest_title",
+            "selectors": {
+                "title": "h2.typo-heading-sm-2",
+                "description": "section.col-span-full a div.border-t p"
+            }
+        }
     ],
     "lambda": [
         {"name": "homepage", "url": "https://lambda.ai/"},
-        {"name": "blog", "url": "https://lambda.ai/blog"}
+        {
+            "name": "blog",
+            "url": "https://lambda.ai/blog",
+            "check_type": "latest_title",
+            "selectors": {
+                "title": "section.comp-blog-listing article.blog-post h4.blog-post__title",
+                "description": "section.comp-blog-listing article.blog-post .blog-post__summary + p"
+            }
+        }
     ],
     "hyperstack": [
         {"name": "homepage", "url": "https://www.hyperstack.cloud/"},
-        {"name": "blog", "url": "https://www.hyperstack.cloud/blog"}
+        {
+            "name": "blog",
+            "url": "https://www.hyperstack.cloud/blog",
+            "check_type": "latest_title",
+            "selectors": {
+                "title": ".nexgen-blog-listing_heading h3 a",
+                "description": ".nexgen-blog-listing_summary p"
+            }
+        }
     ],
     "liquidweb": [
         {"name": "homepage", "url": "https://www.liquidweb.com/"},
-        {"name": "blog", "url": "https://www.liquidweb.com/blog/"}
+        {
+            "name": "blog",
+            "url": "https://www.liquidweb.com/blog/"
+    }
     ],
     "modal": [
         {"name": "homepage", "url": "https://modal.com/"},
-        {"name": "blog", "url": "https://modal.com/blog"}
+        {
+            "name": "blog",
+            "url": "https://modal.com/blog",
+            "check_type": "latest_title",
+            "selectors": {
+                "title": ".marketing-h3"
+            }
+        }
     ],
     "neevcloud": [
         {"name": "homepage", "url": "https://www.neevcloud.com/"},
-        {"name": "blog", "url": "https://blog.neevcloud.com/"}
+        {
+            "name": "blog",
+            "url": "https://blog.neevcloud.com/",
+            "check_type": "latest_title",
+            "selectors": {
+                "title": ".blog-article-card-title a",
+                "description": ".blog-article-card-brief a"
+            }
+        }
     ],
     "oblivus": [
         {"name": "homepage", "url": "https://oblivus.com/"},
-        {"name": "blog", "url": "https://oblivus.com/blog/"}
+        {
+            "name": "blog",
+            "url": "https://oblivus.com/blog/",
+            "check_type": "latest_title",
+            "selectors": {
+                "title": ".card-title-blog"
+            }
+        }
     ],
     "vast": [
         {"name": "homepage", "url": "https://vast.ai/"},
-        {"name": "blog", "url": "https://vast.ai/blog"}
+        {
+            "name": "blog",
+            "url": "https://vast.ai/blog",
+            "check_type": "latest_title",
+            "selectors": {
+                "title": "h2.text-charcoal"
+            }
+        }
     ],
     "datacrunch": [
         {"name": "homepage", "url": "https://datacrunch.io/"},
-        {"name": "blog", "url": "https://datacrunch.io/blog"}
+        {
+            "name": "blog",
+            "url": "https://datacrunch.io/blog",
+            "check_type": "latest_title",
+            "selectors": {
+                "title": "h2.gLGtxN"
+            }
+        }
     ],
     "sakura": [
         {"name": "homepage", "url": "https://cloud.sakura.ad.jp/"},
-        {"name": "blog", "url": "https://www.sakura.ad.jp/corporate/information/"}
+        {
+            "name": "blog",
+            "url": "https://www.sakura.ad.jp/corporate/information/",
+            "check_type": "latest_title",
+            "selectors": {
+                "title": ".post-archive__item__title a"
+            }
+        }
     ],
     "scaleway": [
         {"name": "homepage", "url": "https://www.scaleway.com/en/"},
-        {"name": "blog", "url": "https://www.scaleway.com/en/blog/"}
+        {
+            "name": "blog",
+            "url": "https://www.scaleway.com/en/blog/",
+            "check_type": "latest_title",
+            "selectors": {
+                "title": ".PostsGrid_posts___KcIk h2.font-heading-title a"
+            }
+        }
     ],
     "seeweb": [
         {"name": "homepage", "url": "https://www.seeweb.it/en"},
-        {"name": "blog", "url": "https://blog.seeweb.it/"}
+        {
+            "name": "blog",
+            "url": "https://blog.seeweb.it/",
+            "check_type": "latest_title",
+            "selectors": {
+                "title": "h2.elementor-post__title a",
+                "description": ".elementor-post__excerpt p"
+            }
+        }
     ],
     "sesterce": [
         {"name": "homepage", "url": "https://www.sesterce.com/"},
-        {"name": "blog", "url": "https://www.sesterce.com/blog"}
+        {
+            "name": "blog",
+            "url": "https://www.sesterce.com/blog",
+            "check_type": "latest_title",
+            "selectors": {
+                "title": "h2.font-medium"
+            }
+        }
     ],
     "soroban": [
         {"name": "homepage", "url": "https://soroban.highreso.jp/"},
-        {"name": "blog", "url": "https://soroban.highreso.jp/news"}
+        {
+            "name": "blog",
+            "url": "https://soroban.highreso.jp/news",
+            "check_type": "latest_title",
+            "selectors": {
+                "title": "section h3 a"
+            }
+        }
     ],
     "anthropic": [
         {"name": "homepage", "url": "https://www.anthropic.com/"},
-        {"name": "blog", "url": "https://www.anthropic.com/news"}
+        {
+            "name": "blog",
+            "url": "https://www.anthropic.com/news",
+            "check_type": "latest_title",
+            "selectors": {
+                "title": "h3.Card_headline__reaoT"
+            }
+        }
     ],
     "aws": [
         {"name": "ec2_homepage", "url": "https://aws.amazon.com/jp/ec2/capacityblocks/"},
-        {"name": "sagemaker_homepage", "url": "https://aws.amazon.com/jp/sagemaker/?nc=sn&loc=1"}
+        {"name": "sagemaker_homepage","url": "https://aws.amazon.com/jp/sagemaker/?nc=sn&loc=1"}
     ],
     "azure": [
         {"name": "homepage", "url": "https://azure.microsoft.com/ja-jp/products/ai-services/openai-service/"}
     ],
     "baseten": [
         {"name": "homepage", "url": "https://www.baseten.co/"},
-        {"name": "blog", "url": "https://www.baseten.co/blog/"}
+        {
+            "name": "blog",
+            "url": "https://www.baseten.co/blog/",
+            "check_type": "latest_title",
+            "selectors": {
+                "title": "h4.collectionCard_card__link__qg1Ei a"
+            }
+        }
     ],
     "fireworks": [
         {"name": "homepage", "url": "https://fireworks.ai/"},
-        {"name": "blog", "url": "https://fireworks.ai/blog"}
+        {
+            "name": "blog",
+            "url": "https://fireworks.ai/blog",
+            "check_type": "latest_title",
+            "selectors": {
+                "title": "h3"
+            }
+        }
     ],
     "google": [
         {"name": "vertex_homepage", "url": "https://cloud.google.com/vertex-ai?hl=en"},
-        {"name": "note", "url": "https://cloud.google.com/vertex-ai/docs/release-notes"},
+        {"name": "note","url": "https://cloud.google.com/vertex-ai/docs/release-notes"},
         {"name": "gpu_homepage", "url": "https://cloud.google.com/gpu?hl=en#pricing"}
     ],
     "groq": [
         {"name": "homepage", "url": "https://groq.com/"},
-        {"name": "blog", "url": "https://groq.com/blog"}
+        {
+            "name": "blog",
+            "url": "https://groq.com/blog",
+            "check_type": "latest_title",
+            "selectors": {
+                "title": ".card__heading"
+            }
+        }
     ],
     "openai": [
         {"name": "homepage", "url": "https://openai.com/ja-JP/"},
-        {"name": "blog", "url": "https://openai.com/ja-JP/news/"}
+        {
+            "name": "blog",
+            "url": "https://openai.com/ja-JP/news/",
+            "check_type": "latest_title",
+            "selectors": {
+                "title": ".gap-y-2xl .text-h5"
+            }
+        }
     ],
     "oracle": [
         {"name": "homepage", "url": "https://www.oracle.com/cloud/"},
-        {"name": "blog", "url": "https://blogs.oracle.com/cloud-infrastructure/"}
+        {
+            "name": "blog",
+            "url": "https://blogs.oracle.com/cloud-infrastructure/",
+            "check_type": "latest_title",
+            "selectors": {
+                "title": "#blogs .blogtile-w2 h3 a span"
+            }
+        }
     ],
     "sambanova": [
         {"name": "homepage", "url": "https://cloud.sambanova.ai/dashboard"},
-        {"name": "blog", "url": "https://docs.sambanova.ai/cloud/release-notes/overview"}
+        {
+            "name": "blog",
+            "url": "https://docs.sambanova.ai/cloud/release-notes/overview",
+            "check_type": "latest_title",
+            "selectors": {
+                "title": "#content-area h2:first-of-type + span[data-as='p']"
+            }
+        }
     ],
     "tencent": [
         {"name": "overview", "url": "https://www.tencentcloud.com/jp/document/product/1111/42981"},
-        {"name": "releasenote", "url": "https://www.tencentcloud.com/jp/document/product/1111/42979"}
+        {
+            "name": "releasenote",
+            "url": "https://www.tencentcloud.com/jp/document/product/1111/42979",
+            "check_type": "latest_title",
+            "selectors": {
+                "title": "table:first-of-type tbody tr:nth-of-type(2) td:nth-of-type(1)",
+                "description": "table:first-of-type tbody tr:nth-of-type(2) td:nth-of-type(2)"
+            }
+        }
     ],
     "together": [
         {"name": "homepage", "url": "https://www.together.ai/"},
-        {"name": "blog", "url": "https://www.together.ai/blog"}
+        {
+            "name": "blog",
+            "url": "https://www.together.ai/blog",
+            "check_type": "latest_title",
+            "selectors": {
+                "title": ".section_list-b h3",
+                "description": ""
+            }
+        }
     ],
     "runpod": [
         {"name": "homepage", "url": "https://www.runpod.io/"},
-        {"name": "blog", "url": "https://www.runpod.io/blog"}
+        {
+            "name": "blog",
+            "url": "https://www.runpod.io/blog",
+            "check_type": "latest_title",
+            "selectors": {
+                "title": ".blog-post-card__header h3",
+                "description": ".blog-post-card__content > div[data-line-clamp]"
+            }
+        }
     ]
 }

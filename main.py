@@ -2,6 +2,10 @@ import functions_framework
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
 from datetime import datetime
 # Google Drive連携に必要
 from google.auth import default as google_auth_default
@@ -16,6 +20,11 @@ import time
 from bs4 import BeautifulSoup, Comment
 import requests
 import json
+from PIL import Image
+import google.generativeai as genai
+from google.cloud import aiplatform
+from dotenv import load_dotenv
+import os
 
 # providersから新しいスクリーンショット用関数をインポート
 from providers import (
@@ -55,6 +64,104 @@ from providers import (
     vast_ai_handler
 )
 
+load_dotenv()
+
+def summarize_with_gemini(title: str, description: str, project_id: str, location: str) -> str:
+    """Gemini APIを使って、ブログタイトルから内容の要約を生成する"""
+    print(f"  -> Summarizing title with Gemini: '{title}'")
+    prompt = (
+        "あなたはIT分野の専門家です。以下のブログ記事のタイトルと概要から、"
+        "どのような内容の記事か、技術者向けに簡潔な日本語で3行の要約を生成してください。\n\n"
+        f"【タイトル】\n{title}\n\n"
+        f"【概要】\n{description}"
+    )
+
+    try:
+        # GCP環境（Cloud Runなど）で実行されているか判定
+        if os.getenv('K_SERVICE'):
+            print("  -> Using Vertex AI (production mode)")
+            aiplatform.init(project=project_id, location=location)
+            model = genai.GenerativeModel("gemini-1.5-flash-001")
+            response = model.generate_content(prompt)
+            return response.text.strip()
+        else:
+            print("  -> Using Google AI Studio API Key (local mode)")
+            # ローカル実行時は環境変数からAPIキーを読み込む
+            api_key = os.getenv('GEMINI_API_KEY')
+            if not api_key:
+                return "Error: GEMINI_API_KEY environment variable not set for local execution."
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel("gemini-1.5-flash-latest")
+            response = model.generate_content(prompt)
+            return response.text.strip()
+
+    except Exception as e:
+        print(f"  -> Gemini API call failed: {e}")
+        return f"Error summarizing title: {e}"
+
+def take_scrolling_screenshot(driver, filepath):
+    """
+    ページをスクロールしながら複数のスクリーンショットを撮影し、1枚の画像に結合する。
+    """
+    print("  -> Taking scrolling screenshot...")
+    try:
+        driver.set_window_size(1920, 800) # まずは標準的なサイズに
+        time.sleep(1)
+        
+        total_height = driver.execute_script("return document.body.parentNode.scrollHeight")
+        viewport_height = driver.execute_script("return window.innerHeight")
+        
+        # 結合用の元となる空の画像を作成
+        stitched_image = Image.new('RGB', (1920, total_height))
+        
+        scroll_position = 0
+        while scroll_position < total_height:
+            driver.execute_script(f"window.scrollTo(0, {scroll_position});")
+            time.sleep(0.5) # スクロール後の描画を待つ
+            
+            # 一時ファイルとしてスクリーンショットを撮影
+            temp_screenshot_path = os.path.join(os.path.dirname(filepath), "temp_screenshot.png")
+            driver.save_screenshot(temp_screenshot_path)
+            
+            screenshot_part = Image.open(temp_screenshot_path)
+            
+            # 撮影した部分を結合用画像に貼り付け
+            stitched_image.paste(screenshot_part, (0, scroll_position))
+            
+            scroll_position += viewport_height
+
+        # 結合した画像を保存
+        stitched_image.save(filepath)
+        print(f"  -> Scrolling screenshot saved to: {filepath}")
+        
+        # 一時ファイルを削除
+        if os.path.exists(temp_screenshot_path):
+            os.remove(temp_screenshot_path)
+            
+        return True
+    except Exception as e:
+        print(f"  -> Failed to take scrolling screenshot: {e}")
+        # 失敗した場合は、見える範囲だけでも撮影しておく
+        driver.save_screenshot(filepath)
+        return False
+
+def execute_pre_action(driver, action_name):
+    """
+    指定された名前のアクションを実行する
+    """
+    print(f"  -> Executing pre-action: {action_name}")
+    if action_name == "click_cudo_cookie_decline":
+        try:
+            wait = WebDriverWait(driver, 10)
+            decline_button = wait.until(
+                EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Decline optional cookies')]"))
+            )
+            decline_button.click()
+            time.sleep(2) # ポップアップが消えるのを待つ
+            print("  -> Successfully clicked Cudo cookie decline button.")
+        except TimeoutException:
+            print("  -> Cudo cookie pop-up not found. Proceeding anyway.")
+
 # ===============================================================
 # Webサイト変更監視用ターゲット (JSONファイルから読み込み)
 # ===============================================================
@@ -77,7 +184,7 @@ except Exception as e:
 def send_slack_notification(message):
     """Secret ManagerからWebhook URLを取得し、Slackに通知を送る"""
     try:
-        webhook_url = "https://sample.com"
+        webhook_url = "https://hooks.slack.com/services/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"
 
         # Slackに送信するメッセージのペイロードを作成
         payload = {"text": message}
@@ -181,6 +288,8 @@ def _clean_html_for_comparison(html_content: str) -> str:
 
 def check_website_changes(driver, drive_service, targets):
     print("\n--- Starting Website Change Detection ---")
+    gcp_project_id = "your-gcp-project-id"
+    gcp_location = "asia-northeast1"
     storage_client = storage.Client()
     bucket_name = "gcs-bucket-for-html"
     bucket = storage_client.bucket(bucket_name)
@@ -198,68 +307,117 @@ def check_website_changes(driver, drive_service, targets):
                 # 1. 今日のHTMLを取得
                 driver.get(url)
                 time.sleep(5)
-                html_today_raw = driver.page_source
 
-                # 2. GCSから昨日のHTMLを取得
-                blob_path = f"{platform}/{name}.html"
-                blob = bucket.blob(blob_path)
-                html_yesterday_raw = ""
-                if blob.exists():
-                    html_yesterday_raw = blob.download_as_text()
+                if pre_action := page.get("pre_action"):
+                    execute_pre_action(driver, pre_action)
 
-                # 3. 両方のHTMLをクリーニングし、ハッシュ値を計算して比較
-                content_today = _clean_html_for_comparison(html_today_raw)
-                content_yesterday = _clean_html_for_comparison(html_yesterday_raw)
+                check_type = page.get("check_type", "hash") # デフォルトはhash
 
-                hash_today = hashlib.sha256(content_today.encode('utf-8')).hexdigest()
-                hash_yesterday = hashlib.sha256(content_yesterday.encode('utf-8')).hexdigest()
+                if check_type == "latest_title":
+                    # --- 新しい：最新タイトルの比較ロジック ---
+                    selectors = page.get("selectors")
+                    if not selectors or "title" not in selectors or "description" not in selectors:
+                        print("  -> ERROR: 'latest_title' check type requires 'selectors' with 'title' and 'description'. Skipping.")
+                        continue
 
-                if hash_yesterday != hash_today:
-                    is_changed = True
-                    is_first_run = not html_yesterday_raw
-                else:
-                    is_changed = False
-                    is_first_run = False
-                total_height = driver.execute_script("return document.body.parentNode.scrollHeight")
-                driver.set_window_size(1920, total_height)
-                time.sleep(2)
-                # 4. 変更検知 or 初回実行時の処理
-                if is_first_run or is_changed:
-                    # 1. 毎回ウィンドウサイズを標準にリセットする
-                    print("  -> Resizing window to standard size before measurement...")
-                    driver.set_window_size(1920, 1080)
-                    time.sleep(2)
+                    soup = BeautifulSoup(driver.page_source, 'html.parser')
+                    title_elem = soup.select_one(selectors["title"])
+                    desc_elem = soup.select_one(selectors["description"])
 
-                    # 2. より堅牢な方法でページのフルハイトを取得
-                    total_height = driver.execute_script(
-                        "return Math.max( document.body.scrollHeight, document.body.offsetHeight, document.documentElement.clientHeight, document.documentElement.scrollHeight, document.documentElement.offsetHeight );"
-                    )
+                    if not title_elem or not desc_elem:
+                        print("  -> ERROR: Could not find title or description element with the given selectors. Skipping.")
+                        continue
+
+                    latest_title = title_elem.get_text(strip=True)
+                    latest_desc = desc_elem.get_text(strip=True)
+                    current_content = f"TITLE: {latest_title}\nDESC: {latest_desc}"
                     
-                    # 3. 取得した高さにウィンドウサイズをセット
-                    print(f"  -> Setting window height to {total_height}px for full screenshot.")
+                    # 前回の内容をローカルファイルから取得
+                    content_file_path = os.path.join(output_dir, f"{name}_content.txt")
+                    previous_content = ""
+                    if os.path.exists(content_file_path):
+                        with open(content_file_path, 'r', encoding='utf-8') as f:
+                            previous_content = f.read()
+
+                    is_changed = previous_content != current_content
+                    is_first_run = not previous_content
+
+                    if is_first_run or is_changed:
+                        if is_first_run:
+                            print(f"  -> First run for {platform} - {name}. Saving baseline title.")
+                        else:
+                            print(f"  -> NEW BLOG POST DETECTED! Title: {latest_title}")
+                            summary = summarize_with_gemini(latest_title, latest_desc, gcp_project_id, gcp_location)
+                            slack_message = (
+                                f"【ブログ更新検知】\n"
+                                f"プラットフォーム: {platform}\n"
+                                f"ページ: {name} ({url})\n"
+                                f"新タイトル: {latest_title}\n\n"
+                                f"▼ Geminiによる内容予測:\n{summary}"
+                            )
+                            notifications.append(slack_message)
+                        
+                        # スクリーンショット撮影と内容の保存
+                        filename = f"{platform}_{name}_base.png" if is_first_run else f"{platform}_{name}_diff_{datetime.now().strftime('%Y%m%d-%H%M%S')}.png"
+                        filepath = os.path.join(output_dir, filename)
+                        take_scrolling_screenshot(driver, filepath)
+
+                        with open(content_file_path, 'w', encoding='utf-8') as f:
+                            f.write(current_content)
+                        print(f"  -> Content saved to: {content_file_path}")
+                    else:
+                        print("  -> No new blog post detected.")
+
+                else:
+                    html_today_raw = driver.page_source
+
+                    # 2. GCSから昨日のHTMLを取得
+                    blob_path = f"{platform}/{name}.html"
+                    blob = bucket.blob(blob_path)
+                    html_yesterday_raw = ""
+                    if blob.exists():
+                        html_yesterday_raw = blob.download_as_text()
+
+                    # 3. 両方のHTMLをクリーニングし、ハッシュ値を計算して比較
+                    content_today = _clean_html_for_comparison(html_today_raw)
+                    content_yesterday = _clean_html_for_comparison(html_yesterday_raw)
+
+                    hash_today = hashlib.sha256(content_today.encode('utf-8')).hexdigest()
+                    hash_yesterday = hashlib.sha256(content_yesterday.encode('utf-8')).hexdigest()
+
+                    if hash_yesterday != hash_today:
+                        is_changed = True
+                        is_first_run = not html_yesterday_raw
+                    else:
+                        is_changed = False
+                        is_first_run = False
+                    total_height = driver.execute_script("return document.body.parentNode.scrollHeight")
                     driver.set_window_size(1920, total_height)
                     time.sleep(2)
+                    # 4. 変更検知 or 初回実行時の処理
+                    if is_first_run or is_changed:
+                        filename = ""
+                        if is_first_run:
+                            print(f"  -> First run for {platform} - {name}. Saving baseline.")
+                            filename = f"{platform}_{name}_base.png"
+                            notifications.append(f"Local test - Baseline for {platform} {name} has been saved.")
+                        elif is_changed:
+                            print(f"  -> CHANGE DETECTED for {platform} - {name}!")
+                            timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
+                            filename = f"{platform}_{name}_diff_{timestamp}.png"
+                            notifications.append(f"Local test - Change detected on {platform} {name}: {url}")
+                        
+                        if filename:
+                            filepath = os.path.join(output_dir, filename)
+                            # <<< 従来の撮影方法から新しい関数呼び出しに変更 >>>
+                            take_scrolling_screenshot(driver, filepath)
 
-                    if is_first_run:
-                        print(f"  -> First run for {platform} - {name}. Saving baseline.")
-                        notifications.append(f"Baseline for {platform} {name} has been saved.")
-                        filename = f"{platform}_{name}_base.png"
-                    else: # is_changed == True
-                        print(f"  -> CHANGE DETECTED for {platform} - {name}!")
-                        notifications.append(f"Change detected on {platform} {name}: {url}")
-                        timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
-                        filename = f"{platform}_{name}_diff_{timestamp}.png"
-                    
-                    filepath = os.path.join(output_dir, filename)
-                    driver.save_screenshot(filepath)
-                    new_screenshots.append(filepath)
+                    else:
+                        print(f"  -> No change detected.")
 
-                else:
-                    print(f"  -> No change detected.")
-
-                # 変更があった場合、または初回実行時は今日のHTMLをGCSに保存
-                if is_first_run or is_changed:
-                    blob.upload_from_string(html_today_raw, content_type='text/html')
+                    # 変更があった場合、または初回実行時は今日のHTMLをGCSに保存
+                    if is_first_run or is_changed:
+                        blob.upload_from_string(html_today_raw, content_type='text/html')
 
             except Exception as e:
                 print(f"  -> Error checking {platform} - {name}: {e}")
@@ -290,6 +448,11 @@ def check_website_changes_local(driver, targets):
     local_storage_path = os.path.join(os.getcwd(), "tmp_local_test")
     os.makedirs(local_storage_path, exist_ok=True)
     print(f"Using local storage at: {local_storage_path}")
+    notifications = []
+    
+    # ローカル実行時のためのダミー情報
+    gcp_project_id = "your-gcp-project-id"
+    gcp_location = "asia-northeast1"
 
     for platform, pages in targets.items():
         for page in pages:
@@ -299,64 +462,129 @@ def check_website_changes_local(driver, targets):
             try:
                 driver.get(url)
                 time.sleep(5)
-                html_today_raw = driver.page_source
 
-                # ローカルのHTMLファイルパスを定義
+                if pre_action := page.get("pre_action"):
+                    execute_pre_action(driver, pre_action)
+                
+                check_type = page.get("check_type", "hash")
+                
                 platform_path = os.path.join(local_storage_path, platform)
                 os.makedirs(platform_path, exist_ok=True)
-                html_file_path = os.path.join(platform_path, f"{name}.html")
 
-                # ローカルから昨日のHTMLを取得
-                html_yesterday_raw = ""
-                if os.path.exists(html_file_path):
-                    with open(html_file_path, 'r', encoding='utf-8') as f:
-                        html_yesterday_raw = f.read()
+                # --- 監視タイプに応じて処理を分岐 ---
+                if check_type == "latest_title":
+                    # <<< 新しいロジック：最新タイトルと概要の比較 >>>
+                    selectors = page.get("selectors")
+                    if not selectors or "title" not in selectors or "description" not in selectors:
+                        print("  -> ERROR: 'latest_title' check type requires 'selectors' with 'title' and 'description'. Skipping.")
+                        continue
 
-                # ハッシュ値を比較
-                content_today = _clean_html_for_comparison(html_today_raw)
-                content_yesterday = _clean_html_for_comparison(html_yesterday_raw)
-                hash_today = hashlib.sha256(content_today.encode('utf-8')).hexdigest()
-                hash_yesterday = hashlib.sha256(content_yesterday.encode('utf-8')).hexdigest()
+                    soup = BeautifulSoup(driver.page_source, 'html.parser')
+                    title_elem = soup.select_one(selectors["title"])
+                    desc_elem = soup.select_one(selectors["description"])
 
-                is_changed = hash_yesterday != hash_today
-                is_first_run = not html_yesterday_raw
+                    if not title_elem or not desc_elem:
+                        print("  -> ERROR: Could not find title or description element with the given selectors. Skipping.")
+                        continue
 
-                total_height = driver.execute_script("return document.body.parentNode.scrollHeight")
-                driver.set_window_size(1920, total_height)
-                time.sleep(2)
+                    latest_title = title_elem.get_text(strip=True)
+                    latest_desc = desc_elem.get_text(strip=True)
+                    current_content = f"TITLE: {latest_title}\nDESC: {latest_desc}"
+                    
+                    # 前回の内容をローカルファイルから取得
+                    content_file_path = os.path.join(platform_path, f"{name}_content.txt")
+                    previous_content = ""
+                    if os.path.exists(content_file_path):
+                        with open(content_file_path, 'r', encoding='utf-8') as f:
+                            previous_content = f.read()
 
-                if is_first_run or is_changed:
-                    # 1. ウィンドウサイズをリセット
-                    driver.set_window_size(1920, 1080)
-                    time.sleep(2)
-                    # 2. ページのフルハイトを堅牢な方法で取得
-                    total_height = driver.execute_script("return document.body.parentNode.scrollHeight")
-                    # 3. 取得した高さにウィンドウサイズをセット
-                    driver.set_window_size(1920, total_height)
-                    time.sleep(2)
+                    is_changed = previous_content != current_content
+                    is_first_run = not previous_content
 
-                    if is_first_run:
-                        print(f"  -> First run for {platform} - {name}. Saving baseline.")
-                        filename = f"{platform}_{name}_base.png"
-                    else: # is_changed == True
-                        print(f"  -> CHANGE DETECTED for {platform} - {name}!")
-                        timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
-                        filename = f"{platform}_{name}_diff_{timestamp}.png"
+                    if is_first_run or is_changed:
+                        if is_first_run:
+                            print(f"  -> First run for {platform} - {name}. Saving baseline title.")
+                            summary = summarize_with_gemini(latest_title, latest_desc, gcp_project_id, gcp_location)
+                            slack_message = (
+                                f"【ブログ更新検知】\n"
+                                f"プラットフォーム: {platform}\n"
+                                f"ページ: {name} ({url})\n"
+                                f"新タイトル: {latest_title}\n\n"
+                                f"▼ Geminiによる内容予測:\n{summary}"
+                            )
+                            notifications.append(slack_message)
+                            print(slack_message)
+                        else:
+                            print(f"  -> NEW BLOG POST DETECTED! Title: {latest_title}")
+                            summary = summarize_with_gemini(latest_title, latest_desc, gcp_project_id, gcp_location)
+                            slack_message = (
+                                f"【ブログ更新検知】\n"
+                                f"プラットフォーム: {platform}\n"
+                                f"ページ: {name} ({url})\n"
+                                f"新タイトル: {latest_title}\n\n"
+                                f"▼ Geminiによる内容予測:\n{summary}"
+                            )
+                            notifications.append(slack_message)
+                            print(slack_message)
+                        
+                        # スクリーンショット撮影と内容の保存
+                        filename = f"{platform}_{name}_base.png" if is_first_run else f"{platform}_{name}_diff_{datetime.now().strftime('%Y%m%d-%H%M%S')}.png"
+                        filepath = os.path.join(platform_path, filename)
+                        take_scrolling_screenshot(driver, filepath)
 
-                    filepath = os.path.join(platform_path, filename)
-                    driver.save_screenshot(filepath)
-                    print(f"  -> Screenshot saved to: {filepath}")
+                        with open(content_file_path, 'w', encoding='utf-8') as f:
+                            f.write(current_content)
+                        print(f"  -> Content saved to: {content_file_path}")
+                    else:
+                        print("  -> No new blog post detected.")
 
-                else:
-                    print(f"  -> No change detected.")
-                
-                if is_changed or is_first_run:
-                    with open(html_file_path, 'w', encoding='utf-8') as f:
-                        f.write(html_today_raw)
-                    print(f"  -> HTML saved to: {html_file_path}")
+                else: # check_type == "hash"
+                    html_today_raw = driver.page_source
+                    html_file_path = os.path.join(platform_path, f"{name}.html")
+                    html_yesterday_raw = ""
+                    if os.path.exists(html_file_path):
+                        with open(html_file_path, 'r', encoding='utf-8') as f:
+                            html_yesterday_raw = f.read()
+
+                    content_today = _clean_html_for_comparison(html_today_raw, page.get("selector"))
+                    content_yesterday = _clean_html_for_comparison(html_yesterday_raw, page.get("selector"))
+                    hash_today = hashlib.sha256(content_today.encode('utf-8')).hexdigest()
+                    hash_yesterday = hashlib.sha256(content_yesterday.encode('utf-8')).hexdigest()
+                    
+                    is_changed = hash_yesterday != hash_today
+                    is_first_run = not html_yesterday_raw
+
+                    if is_first_run or is_changed:
+                        if is_first_run:
+                            print(f"  -> First run for {platform} - {name}. Saving baseline.")
+                            notifications.append(f"Local test - Baseline for {platform} {name} has been saved.")
+                        else:
+                            print(f"  -> CHANGE DETECTED for {platform} - {name}!")
+                            notifications.append(f"Local test - Change detected on {platform} {name}: {url}")
+                        
+                        filename = f"{platform}_{name}_base.png" if is_first_run else f"{platform}_{name}_diff_{datetime.now().strftime('%Y%m%d-%H%M%S')}.png"
+                        filepath = os.path.join(platform_path, filename)
+                        take_scrolling_screenshot(driver, filepath)
+
+                        with open(html_file_path, 'w', encoding='utf-8') as f:
+                            f.write(html_today_raw)
+                        print(f"  -> HTML saved to: {html_file_path}")
+                    else:
+                        print(f"  -> No change detected.")
 
             except Exception as e:
                 print(f"  -> Error checking {platform} - {name}: {e}")
+                import traceback
+                traceback.print_exc()
+
+    if notifications:
+        print("\n--- Change Notifications (Local Test) ---")
+        full_message = "（ローカルテスト通知）\n" + "\n\n".join(notifications)
+        print(full_message)
+        # ローカル実行時は実際にSlackに送らないようにコメントアウト
+        send_slack_notification(full_message)
+    else:
+        print("\nNo website changes to notify.")
 
 def upload_files_to_drive(local_files, parent_folder_id):
     try:
@@ -532,37 +760,37 @@ def screenshot_entry_point(request):
 
     # 2. 各ハンドラを呼び出し、ブラウザの操作権を渡す
     print("--- Processing ---")
-    for handler in all_handlers:
-        handler_name = handler.__name__.split('.')[-1]
-        print(f"--- Processing {handler_name} ---")
+    # for handler in all_handlers:
+    #     handler_name = handler.__name__.split('.')[-1]
+    #     print(f"--- Processing {handler_name} ---")
         
-        try:
-            screenshot_paths, scraped_data = handler.process_data_and_screenshot(driver, output_dir)
+    #     try:
+    #         screenshot_paths, scraped_data = handler.process_data_and_screenshot(driver, output_dir)
 
-            if screenshot_paths:
-                saved_files.extend(screenshot_paths)
-                print(f"  -> Got {len(screenshot_paths)} screenshot(s) from {handler_name}.")
+    #         if screenshot_paths:
+    #             saved_files.extend(screenshot_paths)
+    #             print(f"  -> Got {len(screenshot_paths)} screenshot(s) from {handler_name}.")
             
-            if scraped_data:
-                all_scraped_data.extend(scraped_data)
-                print(f"  -> Got {len(scraped_data)} data rows from {handler_name}.")
+    #         if scraped_data:
+    #             all_scraped_data.extend(scraped_data)
+    #             print(f"  -> Got {len(scraped_data)} data rows from {handler_name}.")
 
-        except Exception as e:
-            # ハンドラ実行中に予期せぬエラーが起きた場合
-            print(f"!!! An unexpected error occurred in {handler_name}: {e}. Skipping.")
+    #     except Exception as e:
+    #         # ハンドラ実行中に予期せぬエラーが起きた場合
+    #         print(f"!!! An unexpected error occurred in {handler_name}: {e}. Skipping.")
 
-    # Google Drive/GCSへの接続情報を再利用するために先に定義
-    try:
-        creds, project = google_auth_default(scopes=[
-            'https://www.googleapis.com/auth/spreadsheets',
-            'https://www.googleapis.com/auth/drive',
-            'https://www.googleapis.com/auth/devstorage.read_write' # GCSのスコープを追加
-        ])
-        drive_service = build('drive', 'v3', credentials=creds)
-    except Exception as e:
-        print(f"Failed to authenticate with Google services: {e}")
-        driver.quit()
-        return "Authentication failed.", 500
+    # # Google Drive/GCSへの接続情報を再利用するために先に定義
+    # try:
+    #     creds, project = google_auth_default(scopes=[
+    #         'https://www.googleapis.com/auth/spreadsheets',
+    #         'https://www.googleapis.com/auth/drive',
+    #         'https://www.googleapis.com/auth/devstorage.read_write' # GCSのスコープを追加
+    #     ])
+    #     drive_service = build('drive', 'v3', credentials=creds)
+    # except Exception as e:
+    #     print(f"Failed to authenticate with Google services: {e}")
+    #     driver.quit()
+    #     return "Authentication failed.", 500
 
     # === Webサイト変更監視処理 ===
     if MONITORING_TARGETS:

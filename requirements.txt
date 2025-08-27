@@ -29,3 +29,7 @@ oauth2client
 google-api-python-client
 CurrencyConverter
 google-cloud-storage
+Pillow
+google-cloud-aiplatform
+google-generativeai
+python-dotenv
