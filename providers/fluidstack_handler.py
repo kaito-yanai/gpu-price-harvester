@@ -49,7 +49,8 @@ def fetch_fluidstack_data(soup):
                 continue # 対象GPUでなければスキップ
 
             # 価格情報 (pタグ)
-            price_tag = card.find('p', class_='framer-text')
+            price_container = card.find('div', attrs={'data-framer-name': re.compile(r'^\$|/ H$|On Request')})
+            price_tag = price_container.find('p') if price_container else None
             price_text = price_tag.get_text(strip=True) if price_tag else ""
 
             # "On Request" の場合はスキップ
@@ -99,6 +100,7 @@ def process_data_and_screenshot(driver, output_directory):
 
         # フルページのスクリーンショットを撮影
         print("Taking full-page screenshot...")
+        driver.set_window_size(1920, 800)
         total_height = driver.execute_script("return document.body.parentNode.scrollHeight")
         driver.set_window_size(1920, total_height)
         time.sleep(2)

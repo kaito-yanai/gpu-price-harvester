@@ -11,6 +11,39 @@ COMPUTE_URL = "https://cloud.sesterce.com/compute"
 STATIC_PROVIDER_NAME = "Sesterce"
 STATIC_SERVICE_PROVIDED = "Sesterce GPU Cloud"
 
+def _take_full_page_screenshot_robust(driver, filepath):
+    """
+    JavaScriptを使ってページのCSSを調整し、確実なフルスクリーンショットを撮影する
+    """
+    print("Taking robust full-page screenshot...")
+    try:
+        # 原因となっているスクロールコンテナを特定する
+        # この要素の 'max-h-screen' と 'overflow-y-auto' が問題
+        scroll_container_selector = "document.querySelector('body > div.flex.flex-col')"
+
+        # 1. JavaScriptを実行して、コンテナのスタイルを一時的に変更し、
+        #    ページが自然に縦に伸びるようにする
+        driver.execute_script(
+            f"const el = {scroll_container_selector}; if (el) {{ el.style.maxHeight = 'none'; el.style.overflowY = 'visible'; }}"
+        )
+        time.sleep(1) # スタイルの反映を待つ
+
+        # 2. これでページの全長が正しく取得できるようになったはず
+        total_height = driver.execute_script("return document.body.parentNode.scrollHeight")
+        
+        # 3. ウィンドウサイズを変更して撮影
+        driver.set_window_size(1920, total_height)
+        time.sleep(2) # レンダリング待機
+        
+        driver.save_screenshot(filepath)
+        print(f"Successfully saved screenshot to: {filepath}")
+
+    except Exception as e:
+        print(f"Failed to take robust screenshot: {e}")
+        # 失敗した場合は、従来の方法で試みる
+        driver.save_screenshot(filepath)
+        print(f"Saved a standard screenshot as fallback to: {filepath}")
+
 def create_timestamped_filename(url):
     base_name = url.replace("https://", "").replace("http://", "").replace("www.", "").replace("/", "_")
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -162,8 +195,7 @@ def process_data_and_screenshot(driver, output_directory):
 
         filename = create_timestamped_filename(PRICING_URL)
         filepath = f"{output_directory}/{filename}"
-        driver.save_screenshot(filepath)
-        print(f"Successfully saved screenshot to: {filepath}")
+        _take_full_page_screenshot_robust(driver, filepath) 
         saved_files.append(filepath)
 
         print("Scraping data from pricing page...")
@@ -183,8 +215,7 @@ def process_data_and_screenshot(driver, output_directory):
 
         filename = create_timestamped_filename(COMPUTE_URL)
         filepath = f"{output_directory}/{filename}"
-        driver.save_screenshot(filepath)
-        print(f"Successfully saved screenshot to: {filepath}")
+        _take_full_page_screenshot_robust(driver, filepath) 
         saved_files.append(filepath)
 
         print("Scraping data from compute page...")

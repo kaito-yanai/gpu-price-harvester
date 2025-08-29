@@ -89,7 +89,7 @@ def create_timestamped_filename(url):
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     return f"{base_name}_{timestamp}.png"
 
-def take_screenshot(driver, output_directory):
+def process_data_and_screenshot(driver, output_directory):
     filepath = None
     scraped_data_list = []
 
@@ -105,7 +105,7 @@ def take_screenshot(driver, output_directory):
             wait = WebDriverWait(driver, 10)
             
             # 「Deploy in Anyscale’s Cloud」セクション内にある「hr」ボタンを正確に特定する
-            hr_button_xpath = "//section[@id='deploy-in-anyscale’s-cloud']//button[text()='hr']"
+            hr_button_xpath = "//section[@id=\"deploy-in-anyscale’s-cloud\"]//button[text()='hr']"
             hr_button = wait.until(
                 EC.element_to_be_clickable((By.XPATH, hr_button_xpath))
             )
@@ -118,6 +118,7 @@ def take_screenshot(driver, output_directory):
         
         # --- スクリーンショット撮影とデータ取得 ---
         print("Taking full-page screenshot...")
+        driver.set_window_size(1920, 800)
         total_height = driver.execute_script("return document.body.parentNode.scrollHeight")
         driver.set_window_size(1920, total_height)
         time.sleep(2)

@@ -2,11 +2,73 @@ import time
 from bs4 import BeautifulSoup
 import re
 from datetime import datetime
+from PIL import Image
+import os 
 
 PRICING_URL = "https://cloud.sambanova.ai/plans/pricing"
 
 STATIC_PROVIDER_NAME = "SambaNova"
 STATIC_SERVICE_PROVIDED = "SambaNova API"
+
+def _take_scrolling_screenshot_samba(driver, filepath):
+    """
+    SambaNovaのページ特有の内部スクロールとレイアウトに対応した、
+    スクロール＆結合スクリーンショットを撮影する。
+    """
+    print("Taking scrolling screenshot for SambaNova page...")
+    try:
+        driver.set_window_size(1920, 1080)
+        time.sleep(2)
+        
+        # --- スクロール対象のコンテナを特定 ---
+        # このページのスクロールは <div class="MuiBox-root mui-1xhhxu7"> で行われる
+        scroll_container_selector = "document.querySelector('div.mui-1xhhxu7')"
+        
+        # スクロール領域の高さを取得
+        total_height = driver.execute_script(f"return {scroll_container_selector}.scrollHeight")
+        viewport_height = driver.execute_script("return window.innerHeight")
+
+        # サイドバーの幅を除いたメインコンテンツの幅を取得
+        main_content_width = driver.execute_script(f"return {scroll_container_selector}.clientWidth")
+        
+        stitched_image = Image.new('RGB', (main_content_width, total_height))
+        
+        scroll_position = 0
+        while scroll_position < total_height:
+            # --- 特定のコンテナをスクロールさせる ---
+            driver.execute_script(f"{scroll_container_selector}.scrollTo(0, {scroll_position});")
+            time.sleep(0.5)
+
+            temp_screenshot_path = os.path.join(os.path.dirname(filepath), "temp_screenshot.png")
+            # ページ全体のスクリーンショットを一旦撮る
+            driver.save_screenshot(temp_screenshot_path)
+            
+            full_screenshot = Image.open(temp_screenshot_path)
+
+            # --- サイドバーを除外し、スクロール領域のみを切り出す ---
+            # スクロールコンテナの位置とサイズを取得
+            rect = driver.execute_script(f"return {scroll_container_selector}.getBoundingClientRect();")
+            left, top, right, bottom = rect['left'], rect['top'], rect['right'], rect['bottom']
+
+            # 貼り付け対象のパーツを切り出す
+            screenshot_part = full_screenshot.crop((left, top, right, bottom))
+
+            # 結合用画像に貼り付け
+            stitched_image.paste(screenshot_part, (0, scroll_position))
+            
+            scroll_position += screenshot_part.height
+
+        # 最終的な画像の高さを調整
+        stitched_image = stitched_image.crop((0, 0, main_content_width, total_height))
+        stitched_image.save(filepath)
+        print(f"Scrolling screenshot saved to: {filepath}")
+        
+        if os.path.exists(temp_screenshot_path):
+            os.remove(temp_screenshot_path)
+            
+    except Exception as e:
+        print(f"Failed to take scrolling screenshot: {e}")
+        driver.save_screenshot(filepath) # フォールバック
 
 def create_timestamped_filename(url):
     base_name = url.replace("https://", "").replace("http://", "").replace("www.", "").replace("/", "_")
@@ -95,8 +157,7 @@ def process_data_and_screenshot(driver, output_directory):
 
         filename = create_timestamped_filename(PRICING_URL)
         filepath = f"{output_directory}/{filename}"
-        driver.save_screenshot(filepath)
-        print(f"Successfully saved screenshot to: {filepath}")
+        _take_scrolling_screenshot_samba(driver, filepath)
         saved_files.append(filepath)
 
         print("Scraping data from the page...")

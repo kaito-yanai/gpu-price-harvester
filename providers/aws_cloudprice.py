@@ -45,7 +45,7 @@ def _parse_ec2_capacity_blocks(soup):
     """ EC2 Capacity Blocks のGPUホスティング料金を解析 """
     data_rows = []
     
-    table = soup.select_one("#Pricing_tables + .lb-tbl table")
+    table = soup.select_one("div.lb-tbl table")
     if not table:
         print("ERROR (AWS EC2): Could not find the pricing table.")
         return []
@@ -144,6 +144,12 @@ def process_data_and_screenshot(driver, output_directory):
         print(f"Navigating to AWS EC2 Capacity Blocks: {PRICING_URL_EC2}")
         driver.get(PRICING_URL_EC2)
         time.sleep(5)
+
+        print("Taking full-page screenshot")
+        driver.set_window_size(1920, 800)
+        total_height = driver.execute_script("return document.body.parentNode.scrollHeight")
+        driver.set_window_size(1920, total_height)
+        time.sleep(2)
         
         filename = create_timestamped_filename(PRICING_URL_EC2)
         filepath = f"{output_directory}/{filename}"
@@ -163,6 +169,12 @@ def process_data_and_screenshot(driver, output_directory):
         print(f"Navigating to AWS SageMaker Pricing: {PRICING_URL_SAGEMAKER}")
         driver.get(PRICING_URL_SAGEMAKER)
         time.sleep(5)
+
+        print("Taking full-page screenshot")
+        driver.set_window_size(1920, 800)
+        total_height = driver.execute_script("return document.body.parentNode.scrollHeight")
+        driver.set_window_size(1920, total_height)
+        time.sleep(2)
         
         filename = create_timestamped_filename(PRICING_URL_SAGEMAKER)
         filepath = f"{output_directory}/{filename}"

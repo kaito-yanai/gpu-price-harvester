@@ -151,6 +151,12 @@ def process_data_and_screenshot(driver, output_directory):
         driver.get(SEEWEB_SERVERLESS_GPU_URL)
         time.sleep(5)
 
+        print("Taking full-page screenshot of Scaleway H100...")
+        driver.set_window_size(1920, 800)
+        total_height = driver.execute_script("return document.body.parentNode.scrollHeight")
+        driver.set_window_size(1920, total_height)
+        time.sleep(2)
+
         filename = create_timestamped_filename(SEEWEB_SERVERLESS_GPU_URL)
         filepath = f"{output_directory}/{filename}"
         driver.save_screenshot(filepath)

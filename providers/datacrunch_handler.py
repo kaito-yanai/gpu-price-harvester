@@ -32,7 +32,18 @@ def fetch_datacrunch_data(soup, current_gpu_type):
     """
     all_data = []
     try:
-        table = soup.find('table', class_='w-full')
+        target_header_img = soup.find('img', alt=current_gpu_type)
+        if not target_header_img:
+            print(f"ERROR (DataCrunch): Could not find the header image for {current_gpu_type}.")
+            return []
+        
+        slide_section = target_header_img.find_parent('div', attrs={'data-slide': ''})
+        if not slide_section:
+            print(f"ERROR (DataCrunch): Could not find the parent slide section for {current_gpu_type}.")
+            return []
+        
+        table = slide_section.find('table')
+
         if not table or not table.tbody:
             print(f"ERROR (DataCrunch): Could not find the pricing table for {current_gpu_type}.")
             return []
@@ -89,7 +100,7 @@ def process_data_and_screenshot(driver, output_directory):
         time.sleep(5) 
 
         # B200, H200, H100, L40S, A100 のボタンをすべて見つける
-        gpu_buttons = driver.find_elements(By.XPATH, "//div[contains(@class, 'flex-wrap')]//a[starts-with(@href, '#')]")
+        gpu_buttons = driver.find_elements(By.XPATH, "//ul[@data-groups]//a")
         
         # 取得対象とするGPUのリスト
         target_gpus = ["B200", "H200", "H100", "L40S"]
@@ -107,6 +118,7 @@ def process_data_and_screenshot(driver, output_directory):
 
                 # スクリーンショット撮影
                 print(f"Taking screenshot for {gpu_name}...")
+                driver.set_window_size(1920, 800)
                 total_height = driver.execute_script("return document.body.parentNode.scrollHeight")
                 driver.set_window_size(1920, total_height)
                 time.sleep(1)

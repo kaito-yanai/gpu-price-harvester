@@ -28,7 +28,7 @@ def _fetch_api_prices(soup):
     """ OCI Generative AI のAPI料金を解析 """
     api_data = []
     
-    table = soup.select_one("h4#apex + div table")
+    table = soup.select_one("table[aria-labelledby='apex']")
     if not table:
         print("ERROR (Oracle): Pricing table not found.")
         return []
@@ -81,6 +81,12 @@ def process_data_and_screenshot(driver, output_directory):
         print(f"Navigating to Oracle AI Pricing: {PRICING_URL}")
         driver.get(PRICING_URL)
         time.sleep(5)
+
+        print("Taking full-page screenshot")
+        driver.set_window_size(1920, 800)
+        total_height = driver.execute_script("return document.body.parentNode.scrollHeight")
+        driver.set_window_size(1920, total_height)
+        time.sleep(2)
 
         filename = create_timestamped_filename(PRICING_URL)
         filepath = f"{output_directory}/{filename}"

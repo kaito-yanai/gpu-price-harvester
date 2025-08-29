@@ -31,43 +31,60 @@ def _parse_model_card(card):
     """
     data_rows = []
     model_name_tag = card.select_one("h2.u-display-s")
+    print(model_name_tag)
     if not model_name_tag:
         return []
     
     model_name = model_name_tag.get_text(strip=True)
     
+    # pricing_card_row ごとにループ
     price_rows = card.select("li.pricing_card_row")
     for row in price_rows:
-        price_type_tag = row.select_one(".u-detail-s")
-        price_value_tag = row.select_one("span[data-price-full]")
+        # まず、行全体から "Input" か "Output" を特定する
+        row_text = row.get_text()
+        io_type = ""
+        if "Input" in row_text and "Output" not in row_text:
+            io_type = "Input"
+        elif "Output" in row_text:
+            io_type = "Output"
+        else:
+            continue # Input/Output以外の行はスキップ
 
-        if price_type_tag and price_value_tag:
-            price_type = price_type_tag.get_text(strip=True)
-            # "Input" または "Output" を含む行のみを対象
-            if "Input" not in price_type and "Output" not in price_type:
-                continue
+        # 価格情報が含まれるすべてのspanタグを取得
+        price_spans = row.select("span[data-price-full]")
+        # 価格の説明文を取得（Sonnetのような階層価格で使用）
+        price_tier_descriptions = row.select(".u-detail-s.u-flex-grow")
 
-            price_per_mtok = _parse_price(price_value_tag['data-price-full'])
-
+        if len(price_spans) == 1:
+            # シンプルな価格構造 (Opus, Haiku)
+            price_per_mtok = _parse_price(price_spans[0]['data-price-full'])
             if price_per_mtok is not None:
                 data_rows.append({
-                    "Provider Name": STATIC_PROVIDER_NAME,
-                    "Currency": "USD",
-                    "Service Provided": STATIC_SERVICE_PROVIDED,
-                    "Region": "N/A",
-                    # 新しいキー: API_TYPE を設定
-                    "API_TYPE": f"{model_name} - {price_type}",
-                    # 既存のGPU関連キーは空または"N/A"に
-                    "GPU (H100 or H200 or L40S)": "",
-                    "GPU Variant Name": "N/A",
-                    "Number of Chips": "N/A",
-                    "Memory (GB)": "N/A",
-                    "Amount of Storage": "N/A",
-                    # 価格情報を設定
-                    "Period": "Per 1M Tokens",
-                    "Total Price ($)": price_per_mtok,
+                    "Provider Name": STATIC_PROVIDER_NAME, "Currency": "USD",
+                    "Service Provided": STATIC_SERVICE_PROVIDED, "Region": "N/A",
+                    "API_TYPE": f"{model_name} - {io_type}",
+                    "GPU (H100 or H200 or L40S)": "", "GPU Variant Name": "N/A",
+                    "Number of Chips": "N/A", "Memory (GB)": "N/A", "Amount of Storage": "N/A",
+                    "Period": "Per 1M Tokens", "Total Price ($)": price_per_mtok,
                     "Effective Hourly Rate ($/hr)": "N/A",
                 })
+        elif len(price_spans) > 1:
+            # 複雑な(階層的な)価格構造 (Sonnet)
+            for i, span in enumerate(price_spans):
+                price_per_mtok = _parse_price(span['data-price-full'])
+                # 対応する説明文を取得。なければ汎用的なテキスト
+                tier_desc = price_tier_descriptions[i].get_text(strip=True) if i < len(price_tier_descriptions) else ""
+                
+                if price_per_mtok is not None:
+                    data_rows.append({
+                        "Provider Name": STATIC_PROVIDER_NAME, "Currency": "USD",
+                        "Service Provided": STATIC_SERVICE_PROVIDED, "Region": "N/A",
+                        "API_TYPE": f"{model_name} - {io_type} ({tier_desc})",
+                        "GPU (H100 or H200 or L40S)": "", "GPU Variant Name": "N/A",
+                        "Number of Chips": "N/A", "Memory (GB)": "N/A", "Amount of Storage": "N/A",
+                        "Period": "Per 1M Tokens", "Total Price ($)": price_per_mtok,
+                        "Effective Hourly Rate ($/hr)": "N/A",
+                    })
 
     return data_rows
 
@@ -76,29 +93,31 @@ def _fetch_api_prices(soup):
     final_data = []
     
     # APIタブのコンテンツ内を探す
-    api_tab_content = soup.select_one('div[data-w-tab="API"]')
+    api_tab_content = soup.body
     if not api_tab_content:
         print("ERROR (Anthropic): API tab content not found.")
         return []
 
     # --- Latest Models ---
-    latest_models_section = api_tab_content.find('h2', string=re.compile("Latest models"))
+    latest_models_section = None
+    all_h2_tags = soup.find_all('h2')
+    for h2_tag in all_h2_tags:
+        # .get_text()は<br>などを無視してテキストを連結してくれる
+        if "Latest models" in h2_tag.get_text():
+            latest_models_section = h2_tag
+            break # 見つかったらループを抜ける
     if latest_models_section:
-        # h2の親要素からカードを探す
-        section_wrapper = latest_models_section.find_parent('div')
-        cards = section_wrapper.select('li.u-column-4 > div.card')
-        print(f"Found {len(cards)} cards in 'Latest models' section.")
-        for card in cards:
-            final_data.extend(_parse_model_card(card))
-            
-    # --- Legacy Models ---
-    legacy_models_section = api_tab_content.find('h2', string=re.compile("Legacy models"))
-    if legacy_models_section:
-        section_wrapper = legacy_models_section.find_parent('div')
-        cards = section_wrapper.select('li.u-column-3 > div.card') # Legacyは u-column-3
-        print(f"Found {len(cards)} cards in 'Legacy models' section.")
-        for card in cards:
-            final_data.extend(_parse_model_card(card))
+        # h2の次にあるul要素（カードリスト）を探す
+        card_list_ul = latest_models_section.find_next('ul', class_='u-grid-desktop')
+        if card_list_ul:
+            cards = card_list_ul.select('li.u-column-4 > div.card')
+            print(f"Found {len(cards)} cards in 'Latest models' section.")
+            for card in cards:
+                final_data.extend(_parse_model_card(card))
+        else:
+            print("ERROR (Anthropic): Could not find the card list (ul) for 'Latest models'.")
+    else:
+        print("ERROR (Anthropic): Could not find 'Latest models' h2 header.")
             
     return final_data
 
@@ -109,6 +128,12 @@ def process_data_and_screenshot(driver, output_directory):
         print(f"Navigating to Anthropic Pricing: {PRICING_URL}")
         driver.get(PRICING_URL)
         time.sleep(5)
+
+        print("Taking full-page screenshot")
+        driver.set_window_size(1920, 800)
+        total_height = driver.execute_script("return document.body.parentNode.scrollHeight")
+        driver.set_window_size(1920, total_height)
+        time.sleep(2)
 
         filename = create_timestamped_filename(PRICING_URL)
         filepath = f"{output_directory}/{filename}"

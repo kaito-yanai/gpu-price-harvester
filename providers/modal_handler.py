@@ -108,9 +108,13 @@ def process_data_and_screenshot(driver, output_directory):
             wait = WebDriverWait(driver, 10)
             
             # "Per hour" というテキストを持つdiv要素を探してクリック
-            hour_button_xpath = "//div[contains(@class, 'slider-option') and text()='Per hour']"
+            hour_button_container_xpath = "//button[contains(., 'Per hour') and contains(., 'Per second')]"
+            
+            # ページに複数のボタンがある可能性を考慮し、「Compute costs」の見出しの下にあるボタンに限定する
+            button_xpath = "//h3[text()='Compute costs']/following-sibling::div//button"
+
             hour_button = wait.until(
-                EC.element_to_be_clickable((By.XPATH, hour_button_xpath))
+                EC.element_to_be_clickable((By.XPATH, button_xpath))
             )
             
             print("'Per hour' button found. Clicking it.")
@@ -121,6 +125,7 @@ def process_data_and_screenshot(driver, output_directory):
             
         # --- スクリーンショット撮影とデータ取得 ---
         print("Taking full-page screenshot...")
+        driver.set_window_size(1920, 800)
         total_height = driver.execute_script("return document.body.parentNode.scrollHeight")
         driver.set_window_size(1920, total_height)
         time.sleep(2)

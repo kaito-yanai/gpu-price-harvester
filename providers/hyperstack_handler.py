@@ -23,7 +23,7 @@ def get_canonical_variant_and_base_chip_hyperstack(gpu_name_str):
         return "A100"
     if 'b200' in text or 'gb200' in text:
         return "B200"
-    return None, None
+    return None
 
 def fetch_hyperstack_data(soup):
     """
@@ -60,7 +60,7 @@ def fetch_hyperstack_data(soup):
             price_text = cols[4].get_text(strip=True)
 
             # GPUの大分類を判別
-            gpu_type, _ = get_canonical_variant_and_base_chip_hyperstack(variation)
+            gpu_type = get_canonical_variant_and_base_chip_hyperstack(variation)
             if not gpu_type:
                 continue
 
@@ -106,6 +106,7 @@ def process_data_and_screenshot(driver, output_directory):
 
         # フルページのスクリーンショットを撮影
         print("Taking full-page screenshot...")
+        driver.set_window_size(1920, 800)
         total_height = driver.execute_script("return document.body.parentNode.scrollHeight")
         driver.set_window_size(1920, total_height)
         time.sleep(2)

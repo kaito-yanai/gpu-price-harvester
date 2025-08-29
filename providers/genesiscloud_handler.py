@@ -2,6 +2,9 @@ import time
 from datetime import datetime
 from bs4 import BeautifulSoup
 import re
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 PRICING_URL = "https://www.genesiscloud.com/pricing"
 
@@ -63,6 +66,9 @@ def fetch_genesiscloud_data(soup):
             # チップ数を抽出 (例: "8x NVIDIA H100")
             size_match = re.search(r"(\d+)x\s+NVIDIA", description_text, re.IGNORECASE)
             num_chips = int(size_match.group(1)) if size_match else 1
+
+            # GPU単価とチップ数を掛け合わせて、合計価格を計算します
+            total_price = price * num_chips if price != "N/A" and isinstance(num_chips, int) else price
             
             data_dict = {
                 "Provider Name": "Genesis Cloud",
@@ -70,7 +76,7 @@ def fetch_genesiscloud_data(soup):
                 "Region": region,
                 "GPU (H100 or H200 or L40S)": gpu_type,
                 "Number of Chips": num_chips,
-                "Total Price ($)": price # サイトの表記が per GPU per hour のためそのまま使用
+                "Total Price ($)": round(total_price, 4) if isinstance(total_price, float) else total_price
             }
             all_data.append(data_dict)
 
@@ -96,10 +102,29 @@ def process_data_and_screenshot(driver, output_directory):
     try:
         print(f"Navigating to: {PRICING_URL}")
         driver.get(PRICING_URL)
-        time.sleep(5) 
+        try:
+            # ポップアップが表示されるまで最大10秒間待機します
+            wait = WebDriverWait(driver, 10)
+            
+            # ポップアップ上の「閉じる」「同意しない」等のボタンを探します
+            # ★★★ この下の行を、サイトに合わせて書き換える必要があります ★★★
+            close_button = wait.until(
+                EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Accept All')]"))
+            )
+            
+            # 見つけたボタンをクリックします
+            print("Popup button found. Clicking it...")
+            close_button.click()
+            
+            # 処理が完了するのを少し待ちます
+            time.sleep(2)
+        except Exception as e:
+            # その他のエラーが発生した場合
+            print(f"Could not close popup. Proceeding anyway. Error: {e}")
 
         # フルページのスクリーンショットを撮影
         print("Taking full-page screenshot...")
+        driver.set_window_size(1920, 800)
         total_height = driver.execute_script("return document.body.parentNode.scrollHeight")
         driver.set_window_size(1920, total_height)
         time.sleep(2)

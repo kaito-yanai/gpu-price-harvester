@@ -1,6 +1,6 @@
 {
     "alibaba": [
-        {"name": "homepage", "url": "https://www.alibabacloud.com/en/product/machine-learning/pricing?_p_lc=1"},
+        {"name": "homepage", "url": "https://www.alibabacloud.com/en/product/machine-learning/pricing?_p_lc=1", "selector": ".page-main-content"},
         {
             "name": "blog",
             "url": "https://www.alibabacloud.com/en/news/product?_p_lc=1&spm=a3c0i.7911826.9556232360.54.6a323870ktKQyW",
@@ -82,7 +82,7 @@
         }
     ],
     "koyeb": [
-        {"name": "homepage", "url": "https://www.koyeb.com/"},
+        {"name": "homepage", "url": "https://www.koyeb.com/", "ignore_selectors": ["h1 span.relative", "div[class*='rfm-marquee-container']", "div.bg-noise-dark-globe", "div.bg-noise-light-gradient-bottom-grid"]},
         {
             "name": "blog",
             "url": "https://www.koyeb.com/blog",
@@ -118,11 +118,7 @@
         }
     ],
     "liquidweb": [
-        {"name": "homepage", "url": "https://www.liquidweb.com/"},
-        {
-            "name": "blog",
-            "url": "https://www.liquidweb.com/blog/"
-    }
+        {"name": "homepage", "url": "https://www.liquidweb.com/", "comment": "人間であることの確認が入るためblogの調べが不可。"}
     ],
     "modal": [
         {"name": "homepage", "url": "https://modal.com/"},
@@ -148,7 +144,7 @@
         }
     ],
     "oblivus": [
-        {"name": "homepage", "url": "https://oblivus.com/"},
+        {"name": "homepage", "url": "https://oblivus.com/", "ignore_selectors": [".card-header", "#requests"]},
         {
             "name": "blog",
             "url": "https://oblivus.com/blog/",
@@ -252,17 +248,17 @@
         {"name": "sagemaker_homepage","url": "https://aws.amazon.com/jp/sagemaker/?nc=sn&loc=1"}
     ],
     "azure": [
-        {"name": "homepage", "url": "https://azure.microsoft.com/ja-jp/products/ai-services/openai-service/"}
+        {"name": "homepage", "url": "https://azure.microsoft.com/ja-jp/products/ai-services/openai-service/", "ignore_selectors": ["span[style*='display:none']"]}
     ],
     "baseten": [
-        {"name": "homepage", "url": "https://www.baseten.co/"},
         {
             "name": "blog",
             "url": "https://www.baseten.co/blog/",
             "check_type": "latest_title",
             "selectors": {
-                "title": "h4.collectionCard_card__link__qg1Ei a"
-            }
+                "title": "a.collectionCard_card__link__qg1Ei"
+            },
+            "comment": "homepageは弾かれる"
         }
     ],
     "fireworks": [
@@ -293,25 +289,17 @@
         }
     ],
     "openai": [
-        {"name": "homepage", "url": "https://openai.com/ja-JP/"},
-        {
-            "name": "blog",
-            "url": "https://openai.com/ja-JP/news/",
-            "check_type": "latest_title",
-            "selectors": {
-                "title": ".gap-y-2xl .text-h5"
-            }
-        }
+        {"name": "homepage", "url": "https://openai.com/ja-JP/","ignore_selectors": [".\\@md\\:min-h-\\[96px\\].mt-6.w-full"], "comment": "人間であることの確認が入るためblogの調べが不可。"}
     ],
     "oracle": [
-        {"name": "homepage", "url": "https://www.oracle.com/cloud/"},
         {
             "name": "blog",
             "url": "https://blogs.oracle.com/cloud-infrastructure/",
             "check_type": "latest_title",
             "selectors": {
                 "title": "#blogs .blogtile-w2 h3 a span"
-            }
+            },
+            "comment": "homepageは弾かれる"
         }
     ],
     "sambanova": [
@@ -326,7 +314,7 @@
         }
     ],
     "tencent": [
-        {"name": "overview", "url": "https://www.tencentcloud.com/jp/document/product/1111/42981"},
+        {"name": "overview", "url": "https://www.tencentcloud.com/jp/document/product/1111/42981", "selector": ".catalogue-detail-content"},
         {
             "name": "releasenote",
             "url": "https://www.tencentcloud.com/jp/document/product/1111/42979",

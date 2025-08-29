@@ -2,6 +2,7 @@ import time
 from datetime import datetime
 from bs4 import BeautifulSoup
 import re
+from selenium.webdriver.common.by import By
 
 PRICING_URL = "https://lambda.ai/service/gpu-cloud"
 
@@ -129,6 +130,7 @@ def process_data_and_screenshot(driver, output_directory):
 
                 # フルページのスクリーンショットを撮影
                 print(f"Taking full-page screenshot for {tab_name} tab...")
+                driver.set_window_size(1920, 800)
                 total_height = driver.execute_script("return document.body.parentNode.scrollHeight")
                 driver.set_window_size(1920, total_height)
                 time.sleep(1)

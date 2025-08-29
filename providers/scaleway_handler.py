@@ -177,6 +177,7 @@ def process_data_and_screenshot(driver, output_directory):
         time.sleep(5)
 
         print("Taking full-page screenshot of Scaleway H100...")
+        driver.set_window_size(1920, 800)
         total_height = driver.execute_script("return document.body.parentNode.scrollHeight")
         driver.set_window_size(1920, total_height)
         time.sleep(2)
@@ -206,6 +207,7 @@ def process_data_and_screenshot(driver, output_directory):
         time.sleep(5)
 
         print("Taking full-page screenshot of Scaleway L40S...")
+        driver.set_window_size(1920, 800)
         total_height = driver.execute_script("return document.body.parentNode.scrollHeight")
         driver.set_window_size(1920, total_height)
         time.sleep(2)

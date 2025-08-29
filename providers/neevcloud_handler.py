@@ -127,6 +127,7 @@ def process_data_and_screenshot(driver, output_directory):
             
         # --- スクリーンショット撮影とデータ取得 ---
         print("Taking full-page screenshot...")
+        driver.set_window_size(1920, 800)
         total_height = driver.execute_script("return document.body.parentNode.scrollHeight")
         driver.set_window_size(1920, total_height)
         time.sleep(2)

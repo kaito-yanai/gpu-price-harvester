@@ -25,22 +25,15 @@ def fetch_liquidweb_data(soup):
     """
     all_data = []
     try:
-        # 「Powerful and cost-effective GPUs」という見出しを探す
-        section_header = soup.find('h2', string=re.compile("Powerful and cost-effective GPUs"))
-        if not section_header:
-            print("ERROR (Liquid Web): Could not find the 'Powerful and cost-effective GPUs' section.")
-            return []
-
-        # 見出しの親セクションから、各GPUの価格カード（コンテナ）を見つける
-        # HTMLの構造上、複雑なクラス名を持つ親要素を遡ってから探す
-        container = section_header.find_parent('div', class_='kt-inside-inner-col')
-        
         # L4, L40S, H100など、各価格カードは類似の構造を持つ
-        pricing_cards = container.find_all('div', class_=re.compile("kb-row-layout-id339095_"))
+        pricing_cards = soup.find_all('div', class_='kt-row-column-wrap')
+        if not pricing_cards:
+            print("ERROR (Liquid Web): Could not find any pricing cards with class 'kt-row-layout-inner'.")
+            return []
 
         for card in pricing_cards:
             # GPU名を取得
-            gpu_name_tag = card.find(class_=re.compile("kt-adv-heading339095_.*"))
+            gpu_name_tag = card.find(class_=re.compile(r"kt-adv-heading\w+"))
             if not gpu_name_tag or "GB" not in gpu_name_tag.get_text():
                  continue
             variation = gpu_name_tag.get_text(strip=True)
@@ -111,6 +104,7 @@ def process_data_and_screenshot(driver, output_directory):
 
         # フルページのスクリーンショットを撮影
         print("Taking full-page screenshot...")
+        driver.set_window_size(1920, 800)
         total_height = driver.execute_script("return document.body.parentNode.scrollHeight")
         driver.set_window_size(1920, total_height)
         time.sleep(2)

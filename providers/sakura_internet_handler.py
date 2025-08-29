@@ -26,9 +26,14 @@ def _fetch_cloud_gpu_data(soup):
     さくらのクラウドGPUページの価格表からデータを抽出する
     """
     final_sheet_rows_unpivoted = []
+
+    table = soup.find('table', class_='price-list_02')
+    if not table:
+        print("ERROR (SAKURA): Could not find the pricing table '.price-list_02'. HTML structure may have changed.")
+        return []
     
     # 料金テーブルの各行を取得
-    rows = soup.select("div.comparison-table__body__row")
+    rows = table.tbody.find_all('tr')[1:] 
     if not rows:
         print("ERROR (SAKURA): Could not find pricing rows '.comparison-table__body__row'. HTML structure may have changed.")
         return []
@@ -37,36 +42,26 @@ def _fetch_cloud_gpu_data(soup):
 
     for row in rows:
         try:
-            # --- GPU名とスペックの取得 ---
-            # プラン名は header セルにある
-            plan_name_tag = row.select_one(".comparison-table__body__cell--header .inner > a")
-            display_name = plan_name_tag.get_text(strip=True) if plan_name_tag else "N/A"
-            
-            # スペックは別のセルにある
-            spec_tags = row.select(".comparison-table__body__cell:not(.comparison-table__body__cell--header) .inner")
-            
-            # 例: ['NVIDIA A100 80GB ×1', '8vCPU / 94GB', 'ローカルSSD 3.84TB', '935円', '561,000円']
-            specs_text = [tag.get_text(strip=True) for tag in spec_tags]
+            cells = row.find_all(['th', 'td'])
+            if len(cells) < 4:
+                continue
 
-            gpu_type_text = specs_text[0] if len(specs_text) > 0 else ""
-            cpu_ram_text = specs_text[1] if len(specs_text) > 1 else ""
-            storage_text = specs_text[2] if len(specs_text) > 2 else ""
-            hourly_price_text = specs_text[3] if len(specs_text) > 3 else "0"
+            # --- データの取得 ---
+            display_name = cells[0].get_text(strip=True)
+            hourly_price_text = cells[3].get_text(strip=True)
 
             # --- データの整形 ---
-            gpu_variant_name = "N/A"
             base_chip_category = "N/A"
-            if "A100" in gpu_type_text:
-                base_chip_category = "A100" # H100, H200, L40Sではないが、参考として取得
-                gpu_variant_name = "NVIDIA A100 80GB"
-            elif "L4" in gpu_type_text:
-                base_chip_category = "L4" # L40Sではないが、参考として取得
-                gpu_variant_name = "NVIDIA L4 24GB"
+            if "H100" in display_name:
+                base_chip_category = "H100"
+            elif "V100" in display_name: # 参考情報としてV100も取得
+                base_chip_category = "V100"
             else:
-                continue # 監視対象外のGPUはスキップ
+                continue # 監視対象外
 
-            num_chips_match = re.search(r'×(\d+)', gpu_type_text)
-            num_chips = int(num_chips_match.group(1)) if num_chips_match else 1
+            # このページではチップ数は常に1
+            num_chips = 1
+            gpu_variant_name = display_name
 
             hourly_price_match = re.search(r'([\d,]+)円', hourly_price_text)
             hourly_price = float(hourly_price_match.group(1).replace(',', '')) if hourly_price_match else 0
@@ -78,27 +73,16 @@ def _fetch_cloud_gpu_data(soup):
                 "Region": STATIC_REGION_INFO,
                 "GPU ID": display_name,
                 "GPU (H100 or H200 or L40S)": base_chip_category,
-                "Memory (GB)": "N/A", # HTMLからはVRAMが直接取れないため
                 "Display Name(GPU Type)": display_name,
                 "GPU Variant Name": gpu_variant_name,
-                "Storage Option": "Local SSD",
-                "Amount of Storage": storage_text,
-                "Network Performance (Gbps)": "N/A",
-                "Commitment Discount - 1 Month Price ($/hr per GPU)": "N/A",
-                "Commitment Discount - 3 Month Price ($/hr per GPU)": "N/A",
-                "Commitment Discount - 6 Month Price ($/hr per GPU)": "N/A",
-                "Commitment Discount - 12 Month Price ($/hr per GPU)": "N/A",
-                "Notes / Features": f"vCPU/RAM: {cpu_ram_text}"
             }
             
-            # --- 1チップあたりの時間貸し料金行を生成 ---
-            # このページではすでにNチップ構成の価格が表示されている
             row_hourly_data = {
                 **base_info_for_row,
                 "Number of Chips": num_chips,
                 "Period": "Per Hour",
-                "Total Price ($)": hourly_price, # JPYであることに注意
-                "Effective Hourly Rate ($/hr)": hourly_price / num_chips
+                "Total Price ($)": hourly_price, # JPY
+                "Effective Hourly Rate ($/hr)": hourly_price / num_chips # JPY
             }
             final_sheet_rows_unpivoted.append(row_hourly_data)
 
@@ -122,6 +106,7 @@ def process_data_and_screenshot(driver, output_directory):
         time.sleep(5)
 
         print("Taking full-page screenshot of SAKURA Cloud GPU...")
+        driver.set_window_size(1920, 800)
         total_height = driver.execute_script("return document.body.parentNode.scrollHeight")
         driver.set_window_size(1920, total_height)
         time.sleep(2)
@@ -153,6 +138,7 @@ def process_data_and_screenshot(driver, output_directory):
         time.sleep(5)
         
         print("Taking full-page screenshot of SAKURA Koukaryoku PHY...")
+        driver.set_window_size(1920, 800)
         total_height = driver.execute_script("return document.body.parentNode.scrollHeight")
         driver.set_window_size(1920, total_height)
         time.sleep(2)

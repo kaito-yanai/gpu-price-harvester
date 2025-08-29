@@ -33,39 +33,59 @@ def _get_gpu_info(gpu_str):
 def _parse_api_section(soup):
     api_data = []
     
-    # "Serverless Endpoints" セクション内の価格リストを探す
-    serverless_section = soup.find('div', id='inference')
-    if not serverless_section: return []
+    # "Serverless Inference" という見出しを探す
+    header = soup.find('h2', string='Serverless Inference')
+    if not header:
+        print("ERROR (Together AI): Could not find 'Serverless Inference' header.")
+        return []
+
+    # 見出しの親セクションからテーブルを探す
+    parent_section = header.find_parent('div', class_='pricing_body-box')
+    if not parent_section:
+        print("ERROR (Together AI): Could not find parent section for the table.")
+        return []
     
-    pricing_items = serverless_section.find_next('ul', class_='pricing-list').find_all('li', class_='pricing_item', recursive=False)
-    
-    for item in pricing_items:
-        header_text = item.select_one(".pricing_head h3").get_text(strip=True)
-        
-        # ご指示通り、トークン単位以外のAPIはスキップ
-        if "image" in header_text.lower() or "audio" in header_text.lower():
+    table = parent_section.find('table')
+    if not table:
+        print("ERROR (Together AI): Could not find the pricing table.")
+        return []
+
+    for row in table.select("tbody tr"):
+        cols = row.find_all("td")
+        if len(cols) < 3:
             continue
 
-        rows = item.select(".pricing_content li.pricing_content-row")
-        for row in rows[1:]: # ヘッダー行をスキップ
-            cells = row.select(".pricing_content-cell")
-            if not cells: continue
+        # 1列目: モデル名
+        model_name_tag = cols[0].select_one("p.text-weight-medium")
+        if not model_name_tag:
+            continue
+        model_name = model_name_tag.get_text(strip=True)
 
-            model_name = cells[0].get_text(strip=True)
-            price_text = cells[-1].get_text(strip=True) # 価格は常に最後のセルにあると仮定
-            price = _parse_price(price_text)
-            
-            # Input/Output分離型
-            if "input" in price_text.lower() and "output" in price_text.lower():
-                input_match = re.search(r'([\d\.]+)\s*input', price_text, re.I)
-                output_match = re.search(r'([\d\.]+)\s*output', price_text, re.I)
-                if input_match:
-                    api_data.append({"Provider Name": STATIC_PROVIDER_NAME, "Service Provided": "Serverless API", "Currency": "USD", "API_TYPE": f"{model_name} - Input", "Period": "Per 1M Tokens", "Total Price ($)": _parse_price(input_match.group(1))})
-                if output_match:
-                    api_data.append({"Provider Name": STATIC_PROVIDER_NAME, "Service Provided": "Serverless API", "Currency": "USD", "API_TYPE": f"{model_name} - Output", "Period": "Per 1M Tokens", "Total Price ($)": _parse_price(output_match.group(1))})
-            # 単一価格
-            elif price is not None:
-                api_data.append({"Provider Name": STATIC_PROVIDER_NAME, "Service Provided": "Serverless API", "Currency": "USD", "API_TYPE": model_name, "Period": "Per 1M Tokens", "Total Price ($)": price})
+        # 2列目: Input価格
+        input_price = _parse_price(cols[1].get_text(strip=True))
+        
+        # 3列目: Output価格
+        output_price = _parse_price(cols[2].get_text(strip=True))
+        
+        if input_price is not None:
+            api_data.append({
+                "Provider Name": STATIC_PROVIDER_NAME,
+                "Service Provided": "Serverless API",
+                "Currency": "USD",
+                "API_TYPE": f"{model_name} - Input",
+                "Period": "Per 1M Tokens",
+                "Total Price ($)": input_price
+            })
+
+        if output_price is not None:
+            api_data.append({
+                "Provider Name": STATIC_PROVIDER_NAME,
+                "Service Provided": "Serverless API",
+                "Currency": "USD",
+                "API_TYPE": f"{model_name} - Output",
+                "Period": "Per 1M Tokens",
+                "Total Price ($)": output_price
+            })
 
     return api_data
 
@@ -113,6 +133,12 @@ def process_data_and_screenshot(driver, output_directory):
         print(f"Navigating to Together AI Pricing: {PRICING_URL}")
         driver.get(PRICING_URL)
         time.sleep(5)
+
+        print("Taking full-page screenshot")
+        driver.set_window_size(1920, 800)
+        total_height = driver.execute_script("return document.body.parentNode.scrollHeight")
+        driver.set_window_size(1920, total_height)
+        time.sleep(2)
 
         filename = create_timestamped_filename(PRICING_URL)
         filepath = f"{output_directory}/{filename}"

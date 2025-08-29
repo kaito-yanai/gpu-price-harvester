@@ -170,6 +170,12 @@ def process_data_and_screenshot(driver, output_directory):
         driver.get(PRICING_URL_AISPACON)
         time.sleep(5)
 
+        print("Taking full-page screenshot of Scaleway H100...")
+        driver.set_window_size(1920, 800)
+        total_height = driver.execute_script("return document.body.parentNode.scrollHeight")
+        driver.set_window_size(1920, total_height)
+        time.sleep(2)
+
         filename = create_timestamped_filename(PRICING_URL_AISPACON)
         filepath = f"{output_directory}/{filename}"
         driver.save_screenshot(filepath)
@@ -188,6 +194,12 @@ def process_data_and_screenshot(driver, output_directory):
         print(f"Navigating to Soroban Compute: {PRICING_URL_COMPUTE}")
         driver.get(PRICING_URL_COMPUTE)
         time.sleep(5)
+
+        print("Taking full-page screenshot of Scaleway H100...")
+        driver.set_window_size(1920, 800)
+        total_height = driver.execute_script("return document.body.parentNode.scrollHeight")
+        driver.set_window_size(1920, total_height)
+        time.sleep(2)
 
         filename = create_timestamped_filename(PRICING_URL_COMPUTE)
         filepath = f"{output_directory}/{filename}"

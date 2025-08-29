@@ -33,7 +33,12 @@ def _fetch_api_prices(soup):
         print("ERROR (Tencent Cloud): Could not find the pricing section header.")
         return []
 
-    table = header.find_next_sibling("div", class_="table-container").find("table")
+    table_container = header.find_next("div", class_="table-container")
+    if not table_container:
+        print("ERROR (Tencent Cloud): Could not find the div with class 'table-container'.")
+        return []
+        
+    table = table_container.find("table")
     if not table:
         print("ERROR (Tencent Cloud): Could not find the pricing table.")
         return []
@@ -75,6 +80,12 @@ def process_data_and_screenshot(driver, output_directory):
         print(f"Navigating to Tencent Cloud Pricing: {PRICING_URL}")
         driver.get(PRICING_URL)
         time.sleep(5)
+
+        print("Taking full-page screenshot")
+        driver.set_window_size(1920, 800)
+        total_height = driver.execute_script("return document.body.parentNode.scrollHeight")
+        driver.set_window_size(1920, total_height)
+        time.sleep(2)
 
         filename = create_timestamped_filename(PRICING_URL)
         filepath = f"{output_directory}/{filename}"

@@ -82,12 +82,21 @@ def _parse_gpu_section(soup):
     header = soup.find('p', string='Dedicated Deployments')
     if not header: return []
 
-    table_container = header.find_parent('div', class_='mb-8').find_next_sibling('div')
-    if not table_container: return []
+    parent_section = header.find_parent('div', class_='mb-8')
+    if not parent_section:
+        print("ERROR (Baseten): Could not find parent section for 'Dedicated Deployments'.")
+        return []
 
-    rows = table_container.select("div.grid.relative.grid-cols-2")
-    
-    for row in rows[1:]: # ヘッダー行をスキップ
+    # 価格表のコンテナは 'relative overflow-x-auto' というクラスを持っている
+    table_container = parent_section.find('div', class_='relative overflow-x-auto')
+    if not table_container: 
+        print("ERROR (Baseten): Could not find table container within the section.")
+        return []
+
+    rows = table_container.select("div.grid.hover\\:bg-b-fills-100")
+    print(f"Found {len(rows)} GPU rows in 'Dedicated Deployments' section.")
+
+    for row in rows:
         cols = row.find_all('div', recursive=False)
         if len(cols) < 2: continue
             
@@ -137,6 +146,12 @@ def process_data_and_screenshot(driver, output_directory):
             time.sleep(2) # 表示が切り替わるのを待つ
         except Exception as e:
             print(f"Could not switch to hourly pricing, might already be selected or page structure changed: {e}")
+
+        print("Taking full-page screenshot")
+        driver.set_window_size(1920, 800)
+        total_height = driver.execute_script("return document.body.parentNode.scrollHeight")
+        driver.set_window_size(1920, total_height)
+        time.sleep(2)
 
         # --- スクリーンショット撮影 ---
         filename = create_timestamped_filename(PRICING_URL)
