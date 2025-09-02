@@ -124,7 +124,7 @@ def process_data_and_screenshot(driver, output_directory):
                 print(f"Processing tab: {tab_name}")
                 
                 # ボタンをクリックして表示を切り替え
-                button.click()
+                driver.execute_script("arguments[0].click();", button)
                 # 表示が切り替わるのを少し待つ
                 time.sleep(2)
 

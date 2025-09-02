@@ -74,10 +74,11 @@ def _take_scrolling_screenshot_gcp(driver, filepath):
             pass
 
 def create_timestamped_filename(url):
-    url = url.split('?')[0]
-    base_name = url.replace("https://", "").replace("http://", "").replace("www.", "").replace("/", "_")
+    url_without_query = url.split('?')[0]
+    base_name = url_without_query.replace("https://", "").replace("http://", "").replace("www.", "")
+    safe_base_name = re.sub(r'[\\/*:"<>|]', '_', base_name).replace('/', '_')
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    return f"{base_name}_{timestamp}.png"
+    return f"{safe_base_name}_{timestamp}.png"
 
 def _parse_price(price_str):
     """ '$0.000125' のような文字列から数値のみを抽出 """

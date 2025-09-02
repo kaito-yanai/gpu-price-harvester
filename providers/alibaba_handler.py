@@ -89,9 +89,11 @@ def fetch_alibaba_data(soup):
     return all_data
 
 def create_timestamped_filename(url):
-    base_name = url.replace("https://", "").replace("http://", "").replace("www.", "").replace("/", "_")
+    url_without_query = url.split('?')[0]
+    base_name = url_without_query.replace("https://", "").replace("http://", "").replace("www.", "")
+    safe_base_name = re.sub(r'[\\/*:"<>|]', '_', base_name).replace('/', '_')
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    return f"{base_name}_{timestamp}.png"
+    return f"{safe_base_name}_{timestamp}.png"
 
 def process_data_and_screenshot(driver, output_directory):
     filepath = None

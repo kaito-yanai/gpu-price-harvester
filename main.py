@@ -70,7 +70,7 @@ load_dotenv()
 
 PROJECT_ID = 'device-streaming-6eaa1c05'
 
-def summarize_with_gemini(title: str, description: str, project_id: str, location: str, env: str) -> str:
+def summarize_with_gemini(title: str, description: str, project_id: str, location: str, env: str, credentials=None) -> str:
     """Gemini APIを使って、ブログタイトルから内容の要約を生成する"""
     print(f"  -> Summarizing title with Gemini: '{title}'")
     prompt = (
@@ -84,7 +84,7 @@ def summarize_with_gemini(title: str, description: str, project_id: str, locatio
         # GCP環境（Cloud Runなど）で実行されているか判定
         if env == 'gcp':
             print("  -> Using Vertex AI (production mode)")
-            aiplatform.init(project=project_id, location=location)
+            aiplatform.init(project=project_id, location=location, credentials=credentials)
             model = genai.GenerativeModel("gemini-1.5-flash-001")
             response = model.generate_content(prompt)
             return response.text.strip()
@@ -303,7 +303,7 @@ def _clean_html_for_comparison(html_content: str, selector: str = None, ignore_s
         import uuid
         return str(uuid.uuid4())
 
-def check_website_changes(driver, drive_service, targets):
+def check_website_changes(driver, drive_service, targets, creds):
     print("\n--- Starting Website Change Detection ---")
     gcp_project_id = "device-streaming-6eaa1c05"
     gcp_location = "asia-northeast1"
@@ -331,25 +331,34 @@ def check_website_changes(driver, drive_service, targets):
                 check_type = page.get("check_type", "hash") # デフォルトはhash
 
                 if check_type == "latest_title":
-                    # --- 新しい：最新タイトルの比較ロジック ---
+                    # <<< 新しいロジック：最新タイトルと概要の比較 >>>
                     selectors = page.get("selectors")
-                    if not selectors or "title" not in selectors or "description" not in selectors:
-                        print("  -> ERROR: 'latest_title' check type requires 'selectors' with 'title' and 'description'. Skipping.")
+                    if not selectors or "title" not in selectors:
+                        print("  -> ERROR: 'latest_title' check type requires 'selectors' with at least a 'title'. Skipping.")
                         continue
 
                     soup = BeautifulSoup(driver.page_source, 'html.parser')
                     title_elem = soup.select_one(selectors["title"])
-                    desc_elem = soup.select_one(selectors["description"])
 
-                    if not title_elem or not desc_elem:
-                        print("  -> ERROR: Could not find title or description element with the given selectors. Skipping.")
+                    if not title_elem:
+                        print(f"  -> ERROR: Could not find title element with selector '{selectors['title']}'. Skipping.")
                         continue
 
                     latest_title = title_elem.get_text(strip=True)
-                    latest_desc = desc_elem.get_text(strip=True)
-                    current_content = f"TITLE: {latest_title}\nDESC: {latest_desc}"
-                    
-                    # 前回の内容をローカルファイルから取得
+                    latest_desc = ""
+
+                    desc_selector = selectors.get("description")
+                    if desc_selector:
+                        desc_elem = soup.select_one(desc_selector)
+                        if desc_elem:
+                            latest_desc = desc_elem.get_text(strip=True)
+                        else:
+                            print(f"  -> INFO: Description selector '{desc_selector}' not found, proceeding with title only.")
+
+                    current_content = f"TITLE: {latest_title}"
+                    if latest_desc:
+                        current_content += f"\nDESC: {latest_desc}"
+
                     blob_path = f"{platform}/{name}_content.txt"
                     blob = bucket.blob(blob_path)
                     previous_content = blob.download_as_text() if blob.exists() else ""
@@ -362,7 +371,7 @@ def check_website_changes(driver, drive_service, targets):
                             print(f"  -> First run for {platform} - {name}. Saving baseline title.")
                         else:
                             print(f"  -> NEW BLOG POST DETECTED! Title: {latest_title}")
-                            summary = summarize_with_gemini(latest_title, latest_desc, gcp_project_id, gcp_location, 'gcp')
+                            summary = summarize_with_gemini(latest_title, latest_desc, gcp_project_id, gcp_location, 'gcp', credentials=creds)
                             slack_message = (
                                 f"【ブログ更新検知】\n"
                                 f"プラットフォーム: {platform}\n"
@@ -371,12 +380,12 @@ def check_website_changes(driver, drive_service, targets):
                                 f"▼ Geminiによる内容予測:\n{summary}"
                             )
                             notifications.append(slack_message)
+                            print(slack_message)
                         
                         # スクリーンショット撮影と内容の保存
                         filename = f"{platform}_{name}_base.png" if is_first_run else f"{platform}_{name}_diff_{datetime.now().strftime('%Y%m%d-%H%M%S')}.png"
                         filepath = os.path.join(output_dir, filename)
                         take_scrolling_screenshot(driver, filepath)
-                        new_screenshots.append(filepath)
 
                         blob.upload_from_string(current_content)
                         print(f"  -> Content saved to GCS: gs://{bucket_name}/{blob_path}")
@@ -394,8 +403,8 @@ def check_website_changes(driver, drive_service, targets):
                         html_yesterday_raw = blob.download_as_text()
 
                     # 3. 両方のHTMLをクリーニングし、ハッシュ値を計算して比較
-                    content_today = _clean_html_for_comparison(html_today_raw)
-                    content_yesterday = _clean_html_for_comparison(html_yesterday_raw)
+                    content_today = _clean_html_for_comparison(html_today_raw, page.get("selector"), page.get("ignore_selectors"))
+                    content_yesterday = _clean_html_for_comparison(html_yesterday_raw, page.get("selector"), page.get("ignore_selectors"))
 
                     hash_today = hashlib.sha256(content_today.encode('utf-8')).hexdigest()
                     hash_yesterday = hashlib.sha256(content_yesterday.encode('utf-8')).hexdigest()
@@ -656,22 +665,28 @@ def upload_files_to_drive(local_files, parent_folder_id):
             target_folder_id = items[0].get('id')
             
         # 2. スクリーンショットをアップロード
+        successful_uploads = 0
+        failed_uploads = 0
         for file_path in local_files:
-            # 万が一、リストにNoneが混入していてもスキップする
-            if not file_path:
-                print("Skipping an invalid (None) file path.")
+            try:
+                if not file_path or not os.path.exists(file_path):
+                    print(f"Skipping upload for non-existent file: {file_path}")
+                    failed_uploads += 1
+                    continue
+                
+                file_name = os.path.basename(file_path)
+                print(f"Uploading {file_name} to Google Drive...")
+                media = MediaFileUpload(file_path, mimetype='image/png')
+                file_metadata = {'name': file_name, 'parents': [target_folder_id]}
+                service.files().create(body=file_metadata, media_body=media, fields='id', supportsAllDrives=True).execute()
+                successful_uploads += 1
+
+            except Exception as e:
+                print(f"!!! FAILED to upload {os.path.basename(file_path)}: {e}")
+                failed_uploads += 1
                 continue
-            
-            file_name = os.path.basename(file_path)
-            print(f"Uploading {file_name} to Google Drive...")
-            media = MediaFileUpload(file_path, mimetype='image/png')
-            file_metadata = {
-                'name': file_name,
-                'parents': [target_folder_id]
-            }
-            service.files().create(body=file_metadata, media_body=media, fields='id', supportsAllDrives=True).execute()
         
-        print("All files uploaded successfully.")
+        print(f"Upload process completed. Successful: {successful_uploads}, Failed: {failed_uploads}")
         return True
 
     except Exception as e:
@@ -767,12 +782,15 @@ def screenshot_entry_point(request):
     ]
     # 1. ブラウザを起動する
     options = Options()
-    options.add_argument("--headless")
+    options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage") # メモリ不足対策
     options.add_argument("window-size=1920,1080") # ウィンドウサイズ指定
     # 一般的なユーザーエージェントを設定してbot検出を避ける
     options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36')
+    options.add_argument('--disable-blink-features=AutomationControlled')
+    options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    options.add_experimental_option('useAutomationExtension', False)
     
     if platform.system() == "Linux":
         # クラウド環境 (Linux) の場合、パスを明示的に指定
@@ -783,8 +801,24 @@ def screenshot_entry_point(request):
     else:
         print("Running in local environment (Windows/Mac). Using automatic driver management.")
         driver = webdriver.Chrome(options=options)
+
     
-    output_dir = "tmp" # 保存先
+
+    # Google Drive/GCSへの接続情報を再利用するために先に定義
+    try:
+        creds, project = google_auth_default(scopes=[
+            'https://www.googleapis.com/auth/spreadsheets',
+            'https://www.googleapis.com/auth/drive',
+            'https://www.googleapis.com/auth/devstorage.read_write', # GCSのスコープを追加
+            'https://www.googleapis.com/auth/cloud-platform'
+        ])
+        drive_service = build('drive', 'v3', credentials=creds)
+    except Exception as e:
+        print(f"Failed to authenticate with Google services: {e}")
+        driver.quit()
+        return "Authentication failed.", 500
+    
+    output_dir = "/tmp" # 保存先
     saved_files = [] # 保存したファイルパスを記録するリスト
     all_scraped_data = []
 
@@ -809,22 +843,9 @@ def screenshot_entry_point(request):
             # ハンドラ実行中に予期せぬエラーが起きた場合
             print(f"!!! An unexpected error occurred in {handler_name}: {e}. Skipping.")
 
-    # Google Drive/GCSへの接続情報を再利用するために先に定義
-    try:
-        creds, project = google_auth_default(scopes=[
-            'https://www.googleapis.com/auth/spreadsheets',
-            'https://www.googleapis.com/auth/drive',
-            'https://www.googleapis.com/auth/devstorage.read_write' # GCSのスコープを追加
-        ])
-        drive_service = build('drive', 'v3', credentials=creds)
-    except Exception as e:
-        print(f"Failed to authenticate with Google services: {e}")
-        driver.quit()
-        return "Authentication failed.", 500
-
     # === Webサイト変更監視処理 ===
     if MONITORING_TARGETS:
-        check_website_changes(driver, drive_service, MONITORING_TARGETS)
+        check_website_changes(driver, drive_service, MONITORING_TARGETS, creds)
         # check_website_changes_local(driver, MONITORING_TARGETS)
         print('skip')
 

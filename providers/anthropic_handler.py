@@ -10,9 +10,11 @@ STATIC_PROVIDER_NAME = "Anthropic"
 STATIC_SERVICE_PROVIDED = "Claude API"
 
 def create_timestamped_filename(url):
-    base_name = url.replace("https://", "").replace("http://", "").replace("www.", "").replace("/", "_")
+    url_without_query = url.split('#')[0]
+    base_name = url_without_query.replace("https://", "").replace("http://", "").replace("www.", "")
+    safe_base_name = re.sub(r'[\\/*:"<>|]', '_', base_name).replace('/', '_')
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    return f"{base_name}_{timestamp}.png"
+    return f"{safe_base_name}_{timestamp}.png"
 
 def _parse_price(price_str):
     """ '$15' のような文字列から数値（15.0）を抽出する """
