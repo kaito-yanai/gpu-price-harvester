@@ -27,6 +27,9 @@ from dotenv import load_dotenv
 import os
 import difflib
 from google.cloud import secretmanager
+import google.auth
+import google.auth.transport.requests
+from vertexai.generative_models import GenerativeModel
 
 # providersから新しいスクリーンショット用関数をインポート
 from providers import (
@@ -85,7 +88,7 @@ def summarize_with_gemini(title: str, description: str, project_id: str, locatio
         if env == 'gcp':
             print("  -> Using Vertex AI (production mode)")
             aiplatform.init(project=project_id, location=location, credentials=credentials)
-            model = genai.GenerativeModel("gemini-1.5-flash-001")
+            model = GenerativeModel("gemini-2.5-flash")
             response = model.generate_content(prompt)
             return response.text.strip()
         else:
